@@ -13,7 +13,8 @@ local function getPlayerJob(playerId)
   end
   return {
     name = xPlayer.getJob().name,
-    grade = xPlayer.getJob().grade
+    grade = xPlayer.getJob().grade,
+    gradeName = xPlayer.getJob().grade_name
   }
 end
 
@@ -26,6 +27,14 @@ local function hasPermission(playerId, job, minGrade)
     return false
   end
   return playerJob.grade >= minGrade
+end
+
+local function isBoss(playerId)
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    return false
+  end
+  return playerJob.gradeName == Config.BossGradeName
 end
 
 RegisterNetEvent('mdt:server:ready', function()
@@ -45,8 +54,99 @@ ESX.RegisterServerCallback('mdt:server:getOverview', function(source, cb)
   })
 end)
 
+ESX.RegisterServerCallback('mdt:server:getEmployees', function(source, cb)
+  local playerJob = getPlayerJob(source)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  MySQL.query(
+    'SELECT identifier, firstname, lastname, job_grade FROM users WHERE job = ?',
+    { playerJob.name },
+    function(rows)
+      local employees = {}
+      for _, row in ipairs(rows) do
+        table.insert(employees, {
+          identifier = row.identifier,
+          name = string.format('%s %s', row.firstname or '', row.lastname or ''),
+          grade = row.job_grade
+        })
+      end
+      cb({ ok = true, employees = employees })
+    end
+  )
+end)
+
+ESX.RegisterServerCallback('mdt:server:hireEmployee', function(source, cb, targetId)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  local bossJob = getPlayerJob(playerId)
+  local target = ESX.GetPlayerFromId(targetId)
+  if not bossJob or not target then
+    cb({ ok = false, reason = 'invalid_target' })
+    return
+  end
+
+  target.setJob(bossJob.name, 0)
+  cb({ ok = true })
+end)
+
+ESX.RegisterServerCallback('mdt:server:fireEmployee', function(source, cb, targetId)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  local target = ESX.GetPlayerFromId(targetId)
+  if not target then
+    cb({ ok = false, reason = 'invalid_target' })
+    return
+  end
+
+  target.setJob(Config.DefaultJob, 0)
+  cb({ ok = true })
+end)
+
+ESX.RegisterServerCallback('mdt:server:promoteEmployee', function(source, cb, targetId, newGrade)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  local bossJob = getPlayerJob(playerId)
+  local target = ESX.GetPlayerFromId(targetId)
+  if not bossJob or not target then
+    cb({ ok = false, reason = 'invalid_target' })
+    return
+  end
+
+  target.setJob(bossJob.name, newGrade)
+  cb({ ok = true })
+end)
+
+RegisterNetEvent('mdt:server:updateTaxRate', function(rate)
+  local playerId = source
+  if not hasPermission(playerId, 'doj', Config.Jobs.doj.minGrade) then
+    return
+  end
+  Config.Taxes.defaultRate = rate
+  TriggerClientEvent('mdt:client:taxRateUpdated', -1, rate)
+end)
+
+registerModule('employees', {
+  isBoss = isBoss
+})
+
 registerModule('core', {
-  hasPermission = hasPermission
+  hasPermission = hasPermission,
+  isBoss = isBoss
 })
 
 exports('registerModule', registerModule)

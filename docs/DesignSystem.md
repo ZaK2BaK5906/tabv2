@@ -42,6 +42,8 @@ UI premium en dark mode avec glassmorphism léger, animations fluides et ergonom
 ## Navigation / Pages
 - Dashboard
 - Factures
+- Employés
+- Commissions
 - Taxes / DOJ
 - Concessionnaire
 

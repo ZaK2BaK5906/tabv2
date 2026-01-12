@@ -12,6 +12,15 @@ const Taxes = () => (
           <p className="font-display text-3xl">15%</p>
           <button className="rounded-full border border-white/10 px-4 py-1 text-sm">Modifier</button>
         </div>
+        <div className="mt-4 flex items-center gap-2 text-sm text-white/60">
+          <input
+            className="w-24 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-center"
+            placeholder="15%"
+          />
+          <button className="rounded-full bg-accent-600 px-4 py-1 text-sm text-base-950">
+            Appliquer
+          </button>
+        </div>
         <div className="mt-4 text-sm text-white/60">
           Appliqué automatiquement sur toutes les factures taxées.
         </div>
@@ -77,6 +86,58 @@ const Taxes = () => (
             <button className="mt-3 text-sm text-accent-500">Voir rapport</button>
           </div>
         ))}
+      </div>
+    </section>
+
+    <section className="glass-panel rounded-2xl p-6">
+      <h3 className="font-display text-lg">Historique TVA & facturation</h3>
+      <p className="text-sm text-white/50">
+        Détails par entreprise, justification et statut de paiement.
+      </p>
+      <div className="mt-4 overflow-hidden rounded-2xl border border-white/5">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-white/5 text-xs uppercase tracking-[0.2em] text-white/50">
+            <tr>
+              <th className="px-6 py-4">Entreprise</th>
+              <th className="px-6 py-4">Facture</th>
+              <th className="px-6 py-4">Taxe</th>
+              <th className="px-6 py-4">Taux</th>
+              <th className="px-6 py-4">Justification</th>
+              <th className="px-6 py-4">Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              {
+                company: "Benny's Customs",
+                invoice: 'INV-2043',
+                tax: '$0',
+                rate: 'Exonération',
+                justification: 'Réparation urgence',
+                status: 'Validée'
+              },
+              {
+                company: 'Maze Bank',
+                invoice: 'INV-2041',
+                tax: '$1,820',
+                rate: '15%',
+                justification: 'N/A',
+                status: 'Payée'
+              }
+            ].map((row) => (
+              <tr key={row.invoice} className="border-t border-white/5">
+                <td className="px-6 py-4 font-medium">{row.company}</td>
+                <td className="px-6 py-4 text-white/70">{row.invoice}</td>
+                <td className="px-6 py-4">{row.tax}</td>
+                <td className="px-6 py-4">{row.rate}</td>
+                <td className="px-6 py-4 text-white/60">{row.justification}</td>
+                <td className="px-6 py-4">
+                  <span className="badge">{row.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </section>
   </div>

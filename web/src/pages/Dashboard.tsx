@@ -58,19 +58,17 @@ const Dashboard = () => (
       </div>
 
       <div className="glass-panel rounded-2xl p-8">
-        <h2 className="font-display text-xl">Alertes DOJ</h2>
-        <p className="text-sm text-white/50">Surveillance économique & conformité.</p>
+        <h2 className="font-display text-xl">Mes stats</h2>
+        <p className="text-sm text-white/50">Performance personnelle avant reset.</p>
         <div className="mt-6 space-y-4">
           {[
-            {
-              title: 'Factures sans taxe élevées',
-              description: '3 factures dépassent le plafond autorisé.'
-            },
-            { title: 'Audit programmé', description: 'DOJ demande justificatifs.' }
-          ].map((alert) => (
-            <div key={alert.title} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="font-medium">{alert.title}</p>
-              <p className="text-sm text-white/60">{alert.description}</p>
+            { label: 'Factures créées', value: '18' },
+            { label: 'Montant vendu', value: '$24,800' },
+            { label: 'Commission actuelle', value: '$1,240' }
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/50">{stat.label}</p>
+              <p className="mt-2 font-display text-xl">{stat.value}</p>
             </div>
           ))}
         </div>

@@ -33,8 +33,8 @@ const ShellLayout = ({ children }: { children: React.ReactNode }) => (
     </aside>
     <main className="flex flex-1 flex-col overflow-hidden">
       <Topbar />
-      <div className="flex-1 overflow-y-auto px-10 pb-10 pt-6 scrollbar-thin">
-        {children}
+      <div className="flex-1 overflow-y-auto px-6 pb-10 pt-6 scrollbar-thin xl:px-10">
+        <div className="mx-auto w-full max-w-[1400px]">{children}</div>
       </div>
     </main>
   </div>
