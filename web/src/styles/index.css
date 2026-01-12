@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply font-body bg-base-950 text-white;
+}
+
+.glass-panel {
+  @apply bg-surface-800 backdrop-blur-xl border border-white/5 shadow-card;
+}
+
+.glow-divider {
+  background: linear-gradient(90deg, rgba(85, 226, 255, 0) 0%, rgba(85, 226, 255, 0.6) 50%, rgba(85, 226, 255, 0) 100%);
+}
+
+.badge {
+  @apply inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-xs font-medium text-white/80;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
