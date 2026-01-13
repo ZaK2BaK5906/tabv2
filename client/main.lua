@@ -9,12 +9,20 @@ local function setNuiFocus(state)
   end
 end
 
-RegisterCommand(Config.Command, function()
+local function openTablet(route)
   setNuiFocus(true)
-  SendNUIMessage({ type = 'mdt:open' })
+  SendNUIMessage({ type = 'mdt:open', route = route })
+end
+
+RegisterCommand(Config.Commands.tablet, function()
+  openTablet('/')
 end, false)
 
-RegisterKeyMapping(Config.Command, 'Open MDT Tablet', 'keyboard', Config.Keybind)
+RegisterCommand(Config.Commands.facture, function()
+  openTablet('/invoices')
+end, false)
+
+RegisterKeyMapping(Config.Commands.tablet, 'Ouvrir la tablette MDT', 'keyboard', Config.Keybind)
 
 RegisterNUICallback('mdt:close', function(_, cb)
   setNuiFocus(false)

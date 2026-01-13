@@ -27,7 +27,9 @@ const Invoices = () => (
     <header className="flex items-center justify-between">
       <div>
         <h2 className="font-display text-2xl">Facturation clients</h2>
-        <p className="text-white/50">Prévisualisation obligatoire HT / TVA / TTC.</p>
+        <p className="text-white/50">
+          Prévisualisation obligatoire HT / TVA / TTC. Le DOJ peut facturer sans TVA.
+        </p>
       </div>
       <div className="flex gap-3">
         <button className="rounded-full border border-white/10 px-5 py-2 text-sm text-white/70 transition hover:bg-white/5">
