@@ -21,7 +21,6 @@ body,
   padding: 0;
   background: transparent !important;
   background-color: transparent !important;
-  overflow: hidden;
 }
 
 body {
@@ -30,39 +29,16 @@ body {
   background-color: transparent !important;
 }
 
-/* CRITICAL: Hide EVERYTHING when tablet is closed - prevents background showing */
-html,
-body,
-#root,
-.nui-root {
+/* CRITICAL: Hide everything when tablet is closed */
+body:not(.mdt-open) {
   background: transparent !important;
-  background-color: transparent !important;
 }
 
-/* Hide root by default */
-#root {
+body:not(.mdt-open) #root {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
-}
-
-/* Show root only when mdt-open class is on body */
-body.mdt-open #root {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-}
-
-/* Extra safety layer when closed */
-body:not(.mdt-open) .nui-root,
-body:not(.mdt-open) .tablet-frame {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  width: 0 !important;
-  height: 0 !important;
 }
 
 .nui-root {
