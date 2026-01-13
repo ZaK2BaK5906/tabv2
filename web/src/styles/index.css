@@ -6,8 +6,20 @@
   color-scheme: dark;
 }
 
+html,
+body,
+#root {
+  @apply bg-transparent;
+  height: 100%;
+  width: 100%;
+}
+
 body {
-  @apply font-body text-white bg-transparent;
+  @apply font-body text-white;
+}
+
+body:not(.mdt-open) #root {
+  display: none;
 }
 
 .nui-root {

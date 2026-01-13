@@ -31,6 +31,10 @@ const App = () => {
     }
   }, [setOpen]);
 
+  useEffect(() => {
+    document.body.classList.toggle('mdt-open', isOpen);
+  }, [isOpen]);
+
   if (!isOpen) {
     return null;
   }
