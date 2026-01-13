@@ -51,9 +51,18 @@ const Partnerships = () => {
 
     <section className="grid grid-cols-3 gap-6">
       {[
-        { label: 'Partenariats actifs', value: '8' },
-        { label: 'Réduction moyenne', value: '9%' },
-        { label: 'Économies estimées', value: '$24,500' }
+        {
+          label: 'Partenariats actifs',
+          value: rows.filter((row) => row.status === 'active').length
+        },
+        {
+          label: 'Réduction moyenne',
+          value:
+            rows.length > 0
+              ? formatPercent(rows.reduce((sum, row) => sum + row.discount_rate, 0) / rows.length)
+              : '0%'
+        },
+        { label: 'Économies estimées', value: '—' }
       ].map((metric) => (
         <div key={metric.label} className="glass-panel rounded-2xl p-6">
           <p className="text-xs uppercase tracking-[0.2em] text-white/50">{metric.label}</p>

@@ -56,9 +56,22 @@ const Commissions = () => {
 
     <section className="grid grid-cols-3 gap-6">
       {[
-        { label: 'Commissions dues', value: '$9,789' },
-        { label: 'Paiements en attente', value: '$3,420' },
-        { label: 'Commissions payées', value: '$18,200' }
+        {
+          label: 'Commissions dues',
+          value: currency.format(
+            payouts.reduce((sum, row) => sum + (row.status === 'pending' ? row.amount : 0), 0)
+          )
+        },
+        {
+          label: 'Paiements en attente',
+          value: payouts.filter((row) => row.status === 'pending').length
+        },
+        {
+          label: 'Commissions payées',
+          value: currency.format(
+            payouts.reduce((sum, row) => sum + (row.status === 'paid' ? row.amount : 0), 0)
+          )
+        }
       ].map((metric) => (
         <div key={metric.label} className="glass-panel rounded-2xl p-6">
           <p className="text-xs uppercase tracking-[0.2em] text-white/50">{metric.label}</p>

@@ -70,9 +70,15 @@ const Employees = () => {
 
     <section className="grid grid-cols-3 gap-6">
       {[
-        { label: 'Effectif', value: '24' },
-        { label: 'Commissions dues', value: '$9,789' },
-        { label: 'Ventes 30j', value: '$150,320' }
+        { label: 'Effectif', value: rows.length },
+        {
+          label: 'Commissions dues',
+          value: currency.format(rows.reduce((sum, row) => sum + (row.commission_due ?? 0), 0))
+        },
+        {
+          label: 'Ventes 30j',
+          value: currency.format(rows.reduce((sum, row) => sum + (row.sales_total ?? 0), 0))
+        }
       ].map((metric) => (
         <div key={metric.label} className="glass-panel rounded-2xl p-6">
           <p className="text-xs uppercase tracking-[0.2em] text-white/50">{metric.label}</p>

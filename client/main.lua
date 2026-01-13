@@ -51,6 +51,12 @@ RegisterNUICallback('mdt:getTaxSettings', function(_, cb)
   end)
 end)
 
+RegisterNUICallback('mdt:getOverview', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getOverview', function(response)
+    cb(response)
+  end)
+end)
+
 RegisterNUICallback('mdt:updateTaxRate', function(data, cb)
   if data and data.rate then
     TriggerServerEvent('mdt:server:updateTaxRate', data.rate)
