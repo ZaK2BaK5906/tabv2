@@ -14,6 +14,22 @@ local function openTablet(route)
   SendNUIMessage({ type = 'mdt:open', route = route })
 end
 
+AddEventHandler('onResourceStart', function(resource)
+  if resource ~= resourceName then
+    return
+  end
+  setNuiFocus(false)
+  SendNUIMessage({ type = 'mdt:close' })
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+  if resource ~= resourceName then
+    return
+  end
+  setNuiFocus(false)
+  SendNUIMessage({ type = 'mdt:close' })
+end)
+
 RegisterCommand(Config.Commands.tablet, function()
   openTablet('/')
 end, false)

@@ -26,12 +26,6 @@ const App = () => {
   }, [navigate, setOpen]);
 
   useEffect(() => {
-    if (typeof (window as Window & { GetParentResourceName?: () => string }).GetParentResourceName !== 'function') {
-      setOpen(true);
-    }
-  }, [setOpen]);
-
-  useEffect(() => {
     document.body.classList.toggle('mdt-open', isOpen);
   }, [isOpen]);
 

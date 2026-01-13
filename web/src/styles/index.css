@@ -16,6 +16,7 @@ body,
 
 body {
   @apply font-body text-white;
+  background-color: transparent !important;
 }
 
 body:not(.mdt-open) #root {
