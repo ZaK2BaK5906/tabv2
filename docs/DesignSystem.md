@@ -45,6 +45,7 @@ UI premium en dark mode avec glassmorphism léger, animations fluides et ergonom
 - Employés
 - Commissions
 - Partenariats
+- Produits
 - Taxes / DOJ
 - Concessionnaire
 

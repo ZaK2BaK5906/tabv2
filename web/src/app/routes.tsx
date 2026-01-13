@@ -5,6 +5,7 @@ const Invoices = lazy(() => import('../pages/Invoices'));
 const Employees = lazy(() => import('../pages/Employees'));
 const Commissions = lazy(() => import('../pages/Commissions'));
 const Partnerships = lazy(() => import('../pages/Partnerships'));
+const Products = lazy(() => import('../pages/Products'));
 const Taxes = lazy(() => import('../pages/Taxes'));
 const Dealership = lazy(() => import('../pages/Dealership'));
 
@@ -14,6 +15,7 @@ export const routes = [
   { path: '/employees', label: 'Employés', element: Employees, icon: 'users' },
   { path: '/commissions', label: 'Commissions', element: Commissions, icon: 'money' },
   { path: '/partnerships', label: 'Partenariats', element: Partnerships, icon: 'handshake' },
+  { path: '/products', label: 'Produits', element: Products, icon: 'tag' },
   { path: '/taxes', label: 'Taxes / DOJ', element: Taxes, icon: 'scale' },
   { path: '/dealership', label: 'Concession', element: Dealership, icon: 'car' }
 ];

@@ -27,4 +27,10 @@ Config.Commissions = {
   defaultRate = 0.05
 }
 
+Config.Products = {
+  { label = 'Réparation moteur', price = 1200 },
+  { label = 'Peinture complète', price = 3500 },
+  { label = 'Alignement châssis', price = 800 }
+}
+
 return Config

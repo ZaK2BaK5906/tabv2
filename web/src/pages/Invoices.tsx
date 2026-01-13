@@ -84,6 +84,20 @@ const Invoices = () => (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-white/50">Détails</p>
             <div className="mt-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <button className="rounded-full border border-white/10 px-3 py-1 text-xs">
+                  Produit
+                </button>
+                <button className="rounded-full border border-white/10 px-3 py-1 text-xs">
+                  Prix custom
+                </button>
+              </div>
+              <select className="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">
+                <option>Choisir un produit</option>
+                <option>Réparation moteur — $1,200</option>
+                <option>Peinture complète — $3,500</option>
+                <option>Alignement châssis — $800</option>
+              </select>
               <input
                 className="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 placeholder:text-white/30"
                 placeholder="Motif / prestation"
