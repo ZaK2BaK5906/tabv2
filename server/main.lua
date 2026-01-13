@@ -1,4 +1,17 @@
 local resourceName = GetCurrentResourceName()
+local ESX = exports['es_extended'] and exports['es_extended']:getSharedObject() or nil
+
+CreateThread(function()
+  while not ESX do
+    TriggerEvent('esx:getSharedObject', function(obj)
+      ESX = obj
+    end)
+    if not ESX and exports['es_extended'] then
+      ESX = exports['es_extended']:getSharedObject()
+    end
+    Wait(500)
+  end
+end)
 
 local Modules = {}
 
