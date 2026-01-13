@@ -34,6 +34,7 @@
 - `shared/config.lua` contient les réglages jobs, taxes, commissions et la liste des produits.
 - Les tables SQL supplémentaires sont dans `sql/install.sql` (factures, produits, taxes).
 - Les jobs `auto_occaz` et `pawnshop` sont prévus pour un mode **paiement joueur** (rachat/occasions).
+- Activez les logs Discord dans `Config.Webhooks` pour centraliser les actions staff (recrutements, promotions, taxes, factures, commissions, partenariats).
 
 ## Produits / Prix HT
 - Les produits par défaut sont listés dans `Config.Products`.

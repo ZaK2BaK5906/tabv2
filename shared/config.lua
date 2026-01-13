@@ -9,6 +9,11 @@ Config.Keybind = 'F4'
 Config.DefaultJob = 'unemployed'
 Config.InvoiceItem = 'mdt_invoice'
 
+Config.Webhooks = {
+  enabled = false,
+  staff = ''
+}
+
 Config.Jobs = {
   doj = { label = 'Département de la Justice', minGrade = 0 },
   concessionnaire = { label = 'Concessionnaire', minGrade = 0 },

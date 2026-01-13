@@ -182,6 +182,41 @@ local function refreshClients(entity)
   TriggerClientEvent('mdt:client:dataUpdated', -1, { entity = entity })
 end
 
+local function sendWebhook(eventTitle, fields)
+  if not Config.Webhooks or not Config.Webhooks.enabled then
+    return
+  end
+  if not Config.Webhooks.staff or Config.Webhooks.staff == '' then
+    return
+  end
+
+  local payload = {
+    username = 'MDT Logs',
+    embeds = {
+      {
+        title = eventTitle,
+        color = 15105570,
+        fields = fields or {},
+        footer = { text = resourceName }
+      }
+    }
+  }
+
+  PerformHttpRequest(
+    Config.Webhooks.staff,
+    function() end,
+    'POST',
+    json.encode(payload),
+    { ['Content-Type'] = 'application/json' }
+  )
+end
+
+local function playerLabel(playerId)
+  local name = GetPlayerName(playerId) or 'unknown'
+  local identifier = GetPlayerIdentifier(playerId, 0) or 'unknown'
+  return string.format('%s (%s)', name, identifier)
+end
+
 local function giveInvoiceItem(playerId, payload)
   if not exports.ox_inventory then
     return
@@ -307,6 +342,12 @@ ESX.RegisterServerCallback('mdt:server:updateCommissionRate', function(source, c
     { playerJob.name, payload.identifier, payload.rate },
     function()
       refreshClients('employees')
+      sendWebhook('Commission modifiée', {
+        { name = 'Patron', value = playerLabel(playerId), inline = true },
+        { name = 'Employé', value = payload.identifier, inline = true },
+        { name = 'Taux', value = tostring(payload.rate), inline = true },
+        { name = 'Entreprise', value = playerJob.name, inline = true }
+      })
       cb({ ok = true })
     end
   )
@@ -334,6 +375,11 @@ ESX.RegisterServerCallback('mdt:server:resetEmployeeStats', function(source, cb,
     { playerJob.name, identifier },
     function()
       refreshClients('employees')
+      sendWebhook('Reset stats employé', {
+        { name = 'Patron', value = playerLabel(playerId), inline = true },
+        { name = 'Employé', value = identifier, inline = true },
+        { name = 'Entreprise', value = playerJob.name, inline = true }
+      })
       cb({ ok = true })
     end
   )
@@ -396,6 +442,13 @@ ESX.RegisterServerCallback('mdt:server:savePartnership', function(source, cb, pa
       },
       function()
         refreshClients('partnerships')
+        sendWebhook('Partenariat modifié', {
+          { name = 'Patron', value = playerLabel(playerId), inline = true },
+          { name = 'Entreprise', value = playerJob.name, inline = true },
+          { name = 'Partenaire', value = payload.partner_name, inline = true },
+          { name = 'Réduction', value = tostring(payload.discount_rate or 0), inline = true },
+          { name = 'Statut', value = payload.status or 'active', inline = true }
+        })
         cb({ ok = true })
       end
     )
@@ -416,6 +469,13 @@ ESX.RegisterServerCallback('mdt:server:savePartnership', function(source, cb, pa
     },
     function()
       refreshClients('partnerships')
+      sendWebhook('Partenariat créé', {
+        { name = 'Patron', value = playerLabel(playerId), inline = true },
+        { name = 'Entreprise', value = playerJob.name, inline = true },
+        { name = 'Partenaire', value = payload.partner_name, inline = true },
+        { name = 'Réduction', value = tostring(payload.discount_rate or 0), inline = true },
+        { name = 'Statut', value = payload.status or 'active', inline = true }
+      })
       cb({ ok = true })
     end
   )
@@ -474,6 +534,12 @@ ESX.RegisterServerCallback('mdt:server:createCommissionPayout', function(source,
     },
     function()
       refreshClients('commissions')
+      sendWebhook('Commission créée', {
+        { name = 'Patron', value = playerLabel(playerId), inline = true },
+        { name = 'Employé', value = payload.employeeName, inline = true },
+        { name = 'Montant', value = tostring(payload.amount), inline = true },
+        { name = 'Entreprise', value = playerJob.name, inline = true }
+      })
       cb({ ok = true })
     end
   )
@@ -546,6 +612,13 @@ ESX.RegisterServerCallback('mdt:server:createInvoice', function(source, cb, payl
         giveInvoiceItem(source, payload)
       end
       refreshClients('invoices')
+      sendWebhook('Facture créée', {
+        { name = 'Émetteur', value = playerLabel(source), inline = true },
+        { name = 'Entreprise', value = playerJob.name, inline = true },
+        { name = 'Mode', value = payload.mode or 'citoyen', inline = true },
+        { name = 'Montant', value = tostring(total), inline = true },
+        { name = 'Facture', value = invoiceId, inline = true }
+      })
       cb({ ok = true, invoiceId = invoiceId })
     end
   )
@@ -566,6 +639,11 @@ ESX.RegisterServerCallback('mdt:server:hireEmployee', function(source, cb, targe
   end
 
   target.setJob(bossJob.name, 0)
+  sendWebhook('Employé recruté', {
+    { name = 'Patron', value = playerLabel(playerId), inline = true },
+    { name = 'Employé', value = playerLabel(targetId), inline = true },
+    { name = 'Entreprise', value = bossJob.name, inline = true }
+  })
   cb({ ok = true })
 end)
 
@@ -583,6 +661,11 @@ ESX.RegisterServerCallback('mdt:server:fireEmployee', function(source, cb, targe
   end
 
   target.setJob(Config.DefaultJob, 0)
+  sendWebhook('Employé licencié', {
+    { name = 'Patron', value = playerLabel(playerId), inline = true },
+    { name = 'Employé', value = playerLabel(targetId), inline = true },
+    { name = 'Entreprise', value = (getPlayerJob(playerId) or {}).name or 'unknown', inline = true }
+  })
   cb({ ok = true })
 end)
 
@@ -601,6 +684,12 @@ ESX.RegisterServerCallback('mdt:server:promoteEmployee', function(source, cb, ta
   end
 
   target.setJob(bossJob.name, newGrade)
+  sendWebhook('Employé promu', {
+    { name = 'Patron', value = playerLabel(playerId), inline = true },
+    { name = 'Employé', value = playerLabel(targetId), inline = true },
+    { name = 'Entreprise', value = bossJob.name, inline = true },
+    { name = 'Nouveau grade', value = tostring(newGrade), inline = true }
+  })
   cb({ ok = true })
 end)
 
@@ -613,6 +702,10 @@ RegisterNetEvent('mdt:server:updateTaxRate', function(rate)
   MySQL.update('UPDATE mdt_tax_settings SET default_rate = ? WHERE id = 1', { rate })
   TriggerClientEvent('mdt:client:taxRateUpdated', -1, rate)
   refreshClients('taxes')
+  sendWebhook('TVA modifiée', {
+    { name = 'Agent DOJ', value = playerLabel(playerId), inline = true },
+    { name = 'Nouveau taux', value = tostring(rate), inline = true }
+  })
 end)
 
 RegisterNetEvent('mdt:server:createInvoiceItem', function(payload)
