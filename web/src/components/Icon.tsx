@@ -8,7 +8,8 @@ const icons: Record<string, string> = {
   search: '🔍',
   money: '💰',
   users: '👥',
-  chart: '📈'
+  chart: '📈',
+  handshake: '🤝'
 };
 
 const Icon = ({ name }: { name: string }) => (

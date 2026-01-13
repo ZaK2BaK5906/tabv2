@@ -39,6 +39,87 @@ const Invoices = () => (
       </div>
     </header>
 
+    <section className="grid grid-cols-3 gap-6">
+      <div className="glass-panel col-span-2 rounded-2xl p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-lg">Créer une facture</h3>
+            <p className="text-sm text-white/50">
+              Client citoyen ou entreprise (paiement patron).
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {['Citoyen', 'Entreprise'].map((type) => (
+              <button
+                key={type}
+                className="rounded-full border border-white/10 px-4 py-1 text-xs uppercase tracking-[0.2em] text-white/60 transition hover:bg-white/5"
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/50">Sélection joueur</p>
+            <div className="mt-3 flex items-center justify-between rounded-full border border-white/10 bg-base-900 px-4 py-2">
+              <span className="text-white/70">Joueur le plus proche</span>
+              <button className="rounded-full bg-accent-600 px-3 py-1 text-xs text-base-950">
+                Scanner
+              </button>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                className="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 placeholder:text-white/30"
+                placeholder="Ou ID joueur"
+              />
+              <button className="rounded-full border border-white/10 px-4 py-2 text-xs">
+                OK
+              </button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/50">Détails</p>
+            <div className="mt-3 space-y-3">
+              <input
+                className="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 placeholder:text-white/30"
+                placeholder="Motif / prestation"
+              />
+              <input
+                className="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 placeholder:text-white/30"
+                placeholder="Montant HT"
+              />
+              <div className="flex items-center gap-2 text-xs text-white/60">
+                <button className="rounded-full border border-white/10 px-3 py-1">Taxe auto</button>
+                <button className="rounded-full border border-white/10 px-3 py-1">Sans taxe</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="glass-panel rounded-2xl p-6">
+        <h3 className="font-display text-lg">Prévisualisation</h3>
+        <p className="text-sm text-white/50">HT / TVA / TTC avant validation.</p>
+        <div className="mt-6 space-y-3 text-sm">
+          {[
+            { label: 'Montant HT', value: '$1,200' },
+            { label: 'TVA (15%)', value: '$180' },
+            { label: 'Total TTC', value: '$1,380' }
+          ].map((row) => (
+            <div key={row.label} className="flex items-center justify-between">
+              <span className="text-white/60">{row.label}</span>
+              <span className="font-medium">{row.value}</span>
+            </div>
+          ))}
+        </div>
+        <button className="mt-6 w-full rounded-full bg-accent-600 py-2 text-sm font-medium text-base-950">
+          Envoyer la facture
+        </button>
+      </div>
+    </section>
+
     <div className="glass-panel rounded-2xl p-6">
       <div className="flex items-center justify-between">
         <div className="flex gap-2">

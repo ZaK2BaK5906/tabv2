@@ -10,6 +10,31 @@ body {
   @apply font-body bg-base-950 text-white;
 }
 
+.nui-root {
+  @apply flex h-screen w-screen items-center justify-center bg-transparent;
+  background: radial-gradient(circle at 20% 20%, rgba(85, 226, 255, 0.08), transparent 55%),
+    radial-gradient(circle at 80% 0%, rgba(138, 123, 255, 0.1), transparent 45%),
+    rgba(9, 12, 18, 0.45);
+}
+
+.tablet-frame {
+  @apply flex h-[78vh] w-[78vw] overflow-hidden rounded-[2.5rem] border border-white/10 text-white shadow-soft;
+  background: rgba(10, 14, 20, 0.85);
+  backdrop-filter: blur(18px);
+  transform: perspective(1400px) rotateX(3deg) rotateY(-6deg);
+  box-shadow:
+    0 24px 80px rgba(5, 8, 15, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 1280px) {
+  .tablet-frame {
+    width: 90vw;
+    height: 82vh;
+    transform: perspective(1200px) rotateX(2deg) rotateY(-4deg);
+  }
+}
+
 .glass-panel {
   @apply bg-surface-800 backdrop-blur-xl border border-white/5 shadow-card;
 }
