@@ -22,6 +22,21 @@ const invoices = [
   }
 ];
 
+import { fetchNui } from '../features/nui';
+
+const handleSendInvoice = () => {
+  fetchNui('mdt:createInvoice', {
+    invoiceId: `INV-${Date.now()}`,
+    mode: 'citoyen',
+    product: 'Réparation moteur',
+    amount: 1200,
+    taxRate: 0.15,
+    taxAmount: 180,
+    total: 1380,
+    issuer: 'MDT'
+  }).catch(() => undefined);
+};
+
 const Invoices = () => (
   <div className="space-y-8">
     <header className="flex items-center justify-between">
@@ -130,7 +145,10 @@ const Invoices = () => (
             </div>
           ))}
         </div>
-        <button className="mt-6 w-full rounded-full bg-accent-600 py-2 text-sm font-medium text-base-950">
+        <button
+          onClick={handleSendInvoice}
+          className="mt-6 w-full rounded-full bg-accent-600 py-2 text-sm font-medium text-base-950"
+        >
           Envoyer la facture
         </button>
       </div>

@@ -7,6 +7,7 @@ Config.Commands = {
 }
 Config.Keybind = 'F4'
 Config.DefaultJob = 'unemployed'
+Config.InvoiceItem = 'mdt_invoice'
 
 Config.Jobs = {
   doj = { label = 'Département de la Justice', minGrade = 0 },

@@ -34,6 +34,19 @@
 - Les produits par défaut sont listés dans `Config.Products`.
 - Le patron pourra ajouter des produits directement depuis l'UI (scaffold prêt pour branchement serveur).
 
+## ox_inventory (items facture)
+Ajoutez un item dans `ox_inventory/data/items.lua` :
+```lua
+['mdt_invoice'] = {
+  label = 'Ticket de caisse',
+  weight = 10,
+  stack = false,
+  close = true,
+  description = 'Facture MDT avec metadata'
+}
+```
+Le script envoie les metadata suivantes : `invoice_id`, `mode`, `product`, `amount`, `tax_rate`, `tax_amount`, `total`, `issuer`, `job`, `created_at`.
+
 ## Notes
 - Les écrans sont prévus pour une évolution modulaire (DOJ, Concession, EMS/Police).
 - Pour un premier test : build NUI, démarrez la ressource, ouvrez `/mdt` ou `/facture`.

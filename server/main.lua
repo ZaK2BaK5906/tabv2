@@ -140,6 +140,33 @@ RegisterNetEvent('mdt:server:updateTaxRate', function(rate)
   TriggerClientEvent('mdt:client:taxRateUpdated', -1, rate)
 end)
 
+RegisterNetEvent('mdt:server:createInvoiceItem', function(payload)
+  local playerId = source
+  if not payload or type(payload) ~= 'table' then
+    return
+  end
+
+  if not exports.ox_inventory then
+    return
+  end
+
+  local job = getPlayerJob(playerId)
+  local metadata = {
+    invoice_id = payload.invoiceId or ('INV-' .. os.time()),
+    mode = payload.mode or 'citoyen',
+    product = payload.product or 'Prestation',
+    amount = payload.amount or 0,
+    tax_rate = payload.taxRate or Config.Taxes.defaultRate,
+    tax_amount = payload.taxAmount or 0,
+    total = payload.total or 0,
+    issuer = payload.issuer or GetPlayerName(playerId),
+    job = job and job.name or 'unknown',
+    created_at = os.date('%Y-%m-%d %H:%M:%S')
+  }
+
+  exports.ox_inventory:AddItem(playerId, Config.InvoiceItem, 1, metadata)
+end)
+
 registerModule('employees', {
   isBoss = isBoss
 })

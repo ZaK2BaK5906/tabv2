@@ -32,3 +32,8 @@ end)
 RegisterNUICallback('mdt:ready', function(_, cb)
   cb({ ok = true, resource = resourceName })
 end)
+
+RegisterNUICallback('mdt:createInvoice', function(data, cb)
+  TriggerServerEvent('mdt:server:createInvoiceItem', data or {})
+  cb({ ok = true })
+end)
