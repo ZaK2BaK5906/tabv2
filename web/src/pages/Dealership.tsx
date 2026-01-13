@@ -16,6 +16,18 @@ const Dealership = () => (
       </button>
     </header>
 
+    <div className="glass-panel rounded-2xl p-5">
+      <div className="flex items-center gap-3">
+        <input
+          className="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 placeholder:text-white/30"
+          placeholder="Rechercher un véhicule..."
+        />
+        <button className="rounded-full bg-accent-600 px-4 py-2 text-sm font-medium text-base-950">
+          Rechercher
+        </button>
+      </div>
+    </div>
+
     <section className="grid grid-cols-3 gap-6">
       {vehicles.map((vehicle) => (
         <div key={vehicle.name} className="glass-panel rounded-2xl p-6">

@@ -78,6 +78,15 @@ const Taxes = () => (
 
     <section className="glass-panel rounded-2xl p-6">
       <h3 className="font-display text-lg">Entreprises sous audit</h3>
+      <div className="mt-4 flex items-center gap-2">
+        <input
+          className="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 placeholder:text-white/30"
+          placeholder="Rechercher une entreprise..."
+        />
+        <button className="rounded-full bg-accent-600 px-4 py-2 text-xs font-medium text-base-950">
+          Rechercher
+        </button>
+      </div>
       <div className="mt-4 grid grid-cols-3 gap-4">
         {['Benny\'s Customs', 'Maze Bank', 'Dynasty 8'].map((company) => (
           <div key={company} className="rounded-2xl border border-white/10 bg-white/5 p-4">

@@ -52,10 +52,15 @@ const Partnerships = () => (
             </button>
           ))}
         </div>
-        <input
-          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 placeholder:text-white/30"
-          placeholder="Recherche entreprise..."
-        />
+        <div className="flex items-center gap-2">
+          <input
+            className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 placeholder:text-white/30"
+            placeholder="Recherche entreprise..."
+          />
+          <button className="rounded-full bg-accent-600 px-4 py-2 text-xs font-medium text-base-950">
+            Rechercher
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-white/5">
