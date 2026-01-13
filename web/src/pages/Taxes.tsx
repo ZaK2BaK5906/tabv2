@@ -1,5 +1,43 @@
-const Taxes = () => (
-  <div className="space-y-8">
+import { useEffect, useState } from 'react';
+import { fetchNui } from '../features/nui';
+
+const Taxes = () => {
+  const [rate, setRate] = useState(0.15);
+  const [inputRate, setInputRate] = useState('15');
+
+  const syncRate = (value: number) => {
+    setRate(value);
+    setInputRate(String(Math.round(value * 100)));
+  };
+
+  const loadSettings = () => {
+    fetchNui<{ ok: boolean; taxes: { defaultRate: number } }>('mdt:getTaxSettings')
+      .then((response) => {
+        if (response.ok) {
+          syncRate(response.taxes.defaultRate ?? 0.15);
+        }
+      })
+      .catch(() => undefined);
+  };
+
+  useEffect(() => {
+    loadSettings();
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'mdt:dataUpdated' && event.data?.entity === 'taxes') {
+        loadSettings();
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const applyRate = () => {
+    const value = Math.max(0, Number(inputRate) / 100);
+    fetchNui('mdt:updateTaxRate', { rate: value }).catch(() => undefined);
+  };
+
+  return (
+    <div className="space-y-8">
     <header>
       <h2 className="font-display text-2xl">Contrôle fiscal DOJ</h2>
       <p className="text-white/50">Gestion globale des taxes, audits et sanctions RP.</p>
@@ -9,15 +47,20 @@ const Taxes = () => (
       <div className="glass-panel rounded-2xl p-6">
         <p className="text-xs uppercase tracking-[0.2em] text-white/50">Taux global</p>
         <div className="mt-3 flex items-end justify-between">
-          <p className="font-display text-3xl">15%</p>
+          <p className="font-display text-3xl">{Math.round(rate * 100)}%</p>
           <button className="rounded-full border border-white/10 px-4 py-1 text-sm">Modifier</button>
         </div>
         <div className="mt-4 flex items-center gap-2 text-sm text-white/60">
           <input
             className="w-24 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-center"
-            placeholder="15%"
+            value={inputRate}
+            onChange={(event) => setInputRate(event.target.value)}
+            placeholder="15"
           />
-          <button className="rounded-full bg-accent-600 px-4 py-1 text-sm text-base-950">
+          <button
+            onClick={applyRate}
+            className="rounded-full bg-accent-600 px-4 py-1 text-sm text-base-950"
+          >
             Appliquer
           </button>
         </div>
@@ -150,6 +193,7 @@ const Taxes = () => (
       </div>
     </section>
   </div>
-);
+  );
+};
 
 export default Taxes;

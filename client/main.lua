@@ -34,6 +34,33 @@ RegisterNUICallback('mdt:ready', function(_, cb)
 end)
 
 RegisterNUICallback('mdt:createInvoice', function(data, cb)
-  TriggerServerEvent('mdt:server:createInvoiceItem', data or {})
+  ESX.TriggerServerCallback('mdt:server:createInvoice', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:getInvoices', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:getInvoices', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:getTaxSettings', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getTaxSettings', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:updateTaxRate', function(data, cb)
+  if data and data.rate then
+    TriggerServerEvent('mdt:server:updateTaxRate', data.rate)
+  end
   cb({ ok = true })
+end)
+
+RegisterNetEvent('mdt:client:dataUpdated', function(payload)
+  SendNUIMessage({
+    type = 'mdt:dataUpdated',
+    entity = payload and payload.entity or 'unknown'
+  })
 end)

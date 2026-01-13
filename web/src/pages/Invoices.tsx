@@ -1,44 +1,70 @@
-const invoices = [
-  {
-    id: 'INV-2042',
-    client: 'LS Customs',
-    amount: '$4,800',
-    tax: '15%',
-    status: 'Payée'
-  },
-  {
-    id: 'INV-2043',
-    client: 'Drift Works',
-    amount: '$9,200',
-    tax: 'Sans taxe',
-    status: 'En attente'
-  },
-  {
-    id: 'INV-2044',
-    client: 'Pillbox Medical',
-    amount: '$12,150',
-    tax: '15%',
-    status: 'Impayée'
-  }
-];
-
+import { useEffect, useState } from 'react';
 import { fetchNui } from '../features/nui';
 
-const handleSendInvoice = () => {
-  fetchNui('mdt:createInvoice', {
-    invoiceId: `INV-${Date.now()}`,
-    mode: 'citoyen',
-    product: 'Réparation moteur',
-    amount: 1200,
-    taxRate: 0.15,
-    taxAmount: 180,
-    total: 1380,
-    issuer: 'MDT'
-  }).catch(() => undefined);
+type InvoiceRow = {
+  invoice_id: string;
+  job_name: string;
+  issuer_name: string;
+  target_name?: string;
+  mode: string;
+  product_label: string;
+  amount_ht: number;
+  tax_rate: number;
+  tax_amount: number;
+  total_ttc: number;
+  status: string;
+  tax_free_reason?: string;
+  created_at: string;
 };
 
-const Invoices = () => (
-  <div className="space-y-8">
+const currency = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0
+});
+
+const formatTax = (rate: number) => (rate > 0 ? `${Math.round(rate * 100)}%` : 'Sans taxe');
+
+const Invoices = () => {
+  const [rows, setRows] = useState<InvoiceRow[]>([]);
+
+  const loadInvoices = () => {
+    fetchNui<{ ok: boolean; invoices: InvoiceRow[] }>('mdt:getInvoices')
+      .then((response) => {
+        if (response.ok) {
+          setRows(response.invoices ?? []);
+        }
+      })
+      .catch(() => undefined);
+  };
+
+  useEffect(() => {
+    loadInvoices();
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'mdt:dataUpdated' && event.data?.entity === 'invoices') {
+        loadInvoices();
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const handleSendInvoice = () => {
+    fetchNui('mdt:createInvoice', {
+      invoiceId: `INV-${Date.now()}`,
+      mode: 'citoyen',
+      product: 'Réparation moteur',
+      amount: 1200,
+      taxRate: 0.15,
+      taxAmount: 180,
+      total: 1380,
+      issuer: 'MDT',
+      giveItem: true
+    }).catch(() => undefined);
+  };
+
+  return (
+    <div className="space-y-8">
     <header className="flex items-center justify-between">
       <div>
         <h2 className="font-display text-2xl">Facturation clients</h2>
@@ -190,13 +216,15 @@ const Invoices = () => (
             </tr>
           </thead>
           <tbody>
-            {invoices.map((invoice) => (
-              <tr key={invoice.id} className="border-t border-white/5">
-                <td className="px-6 py-4 font-medium">{invoice.id}</td>
-                <td className="px-6 py-4 text-white/70">{invoice.client}</td>
-                <td className="px-6 py-4">{invoice.amount}</td>
+            {rows.map((invoice) => (
+              <tr key={invoice.invoice_id} className="border-t border-white/5">
+                <td className="px-6 py-4 font-medium">{invoice.invoice_id}</td>
+                <td className="px-6 py-4 text-white/70">
+                  {invoice.target_name || invoice.job_name}
+                </td>
+                <td className="px-6 py-4">{currency.format(invoice.total_ttc)}</td>
                 <td className="px-6 py-4">
-                  <span className="badge">{invoice.tax}</span>
+                  <span className="badge">{formatTax(invoice.tax_rate)}</span>
                 </td>
                 <td className="px-6 py-4">
                   <span className="rounded-full bg-white/5 px-3 py-1 text-xs">
@@ -223,6 +251,7 @@ const Invoices = () => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default Invoices;

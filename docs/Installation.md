@@ -20,6 +20,10 @@
    ```
 5. **Redémarrez votre serveur**.
 
+## Installation SQL (recommandée)
+- Le script crée automatiquement les tables si `oxmysql` est actif et que l'utilisateur SQL a les droits `CREATE`.
+- Si vous préférez installer manuellement : importez `sql/install.sql` dans votre base.
+
 ## Commandes / Keybinds
 - `/mdt` : ouvre la tablette
 - `/facture` : ouvre directement l'écran Factures
@@ -27,7 +31,7 @@
 
 ## Configuration (FR)
 - `shared/config.lua` contient les réglages jobs, taxes, commissions et la liste des produits.
-- **Aucune table SQL personnalisée** : le script utilise les tables ESX existantes (`users`, `billing`, etc.).
+- Les tables SQL supplémentaires sont dans `sql/install.sql` (factures, produits, taxes).
 - Les jobs `auto_occaz` et `pawnshop` sont prévus pour un mode **paiement joueur** (rachat/occasions).
 
 ## Produits / Prix HT
