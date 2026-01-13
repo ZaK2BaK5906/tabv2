@@ -23,6 +23,7 @@
 ## Installation SQL (recommandée)
 - Le script crée automatiquement les tables si `oxmysql` est actif et que l'utilisateur SQL a les droits `CREATE`.
 - Si vous préférez installer manuellement : importez `sql/install.sql` dans votre base.
+- Tables incluses : taxes (`mdt_tax_settings`, `mdt_tax_rules`), factures (`mdt_invoices`), produits (`mdt_products`), partenariats (`mdt_partnerships`), commissions (`mdt_commission_payouts`) et stats employés (`mdt_employee_stats`).
 
 ## Commandes / Keybinds
 - `/mdt` : ouvre la tablette

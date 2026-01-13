@@ -1,20 +1,42 @@
-const partnerships = [
-  {
-    company: 'Benny\'s Customs',
-    discount: '12%',
-    status: 'Actif',
-    notes: 'Réduction pièces & main d\'œuvre'
-  },
-  {
-    company: 'Bean Machine',
-    discount: '6%',
-    status: 'En attente',
-    notes: 'Accord sur catering'
-  }
-];
+import { useEffect, useState } from 'react';
+import { fetchNui } from '../features/nui';
 
-const Partnerships = () => (
-  <div className="space-y-8">
+type PartnershipRow = {
+  id: number;
+  partner_name: string;
+  discount_rate: number;
+  status: string;
+  notes?: string;
+};
+
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+
+const Partnerships = () => {
+  const [rows, setRows] = useState<PartnershipRow[]>([]);
+
+  const loadPartnerships = () => {
+    fetchNui<{ ok: boolean; partnerships: PartnershipRow[] }>('mdt:getPartnerships')
+      .then((response) => {
+        if (response.ok) {
+          setRows(response.partnerships ?? []);
+        }
+      })
+      .catch(() => undefined);
+  };
+
+  useEffect(() => {
+    loadPartnerships();
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'mdt:dataUpdated' && event.data?.entity === 'partnerships') {
+        loadPartnerships();
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  return (
+    <div className="space-y-8">
     <header className="flex items-center justify-between">
       <div>
         <h2 className="font-display text-2xl">Partenariats entreprises</h2>
@@ -75,10 +97,12 @@ const Partnerships = () => (
             </tr>
           </thead>
           <tbody>
-            {partnerships.map((partnership) => (
-              <tr key={partnership.company} className="border-t border-white/5">
-                <td className="px-6 py-4 font-medium">{partnership.company}</td>
-                <td className="px-6 py-4 text-accent-500">{partnership.discount}</td>
+            {rows.map((partnership) => (
+              <tr key={partnership.id} className="border-t border-white/5">
+                <td className="px-6 py-4 font-medium">{partnership.partner_name}</td>
+                <td className="px-6 py-4 text-accent-500">
+                  {formatPercent(partnership.discount_rate)}
+                </td>
                 <td className="px-6 py-4">
                   <span className="badge">{partnership.status}</span>
                 </td>
@@ -95,6 +119,7 @@ const Partnerships = () => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default Partnerships;

@@ -101,6 +101,52 @@ local function ensureTables()
       KEY idx_mdt_invoices_target (target_identifier)
     )
   ]])
+
+  MySQL.query([[
+    CREATE TABLE IF NOT EXISTS mdt_partnerships (
+      id INT NOT NULL AUTO_INCREMENT,
+      job_name VARCHAR(60) NOT NULL,
+      partner_name VARCHAR(120) NOT NULL,
+      discount_rate FLOAT NOT NULL DEFAULT 0,
+      status VARCHAR(40) NOT NULL DEFAULT 'active',
+      notes VARCHAR(255) DEFAULT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_mdt_partnerships_job (job_name)
+    )
+  ]])
+
+  MySQL.query([[
+    CREATE TABLE IF NOT EXISTS mdt_commission_payouts (
+      id INT NOT NULL AUTO_INCREMENT,
+      job_name VARCHAR(60) NOT NULL,
+      employee_identifier VARCHAR(60) NOT NULL,
+      employee_name VARCHAR(120) NOT NULL,
+      amount INT NOT NULL DEFAULT 0,
+      status VARCHAR(40) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      paid_at TIMESTAMP NULL DEFAULT NULL,
+      PRIMARY KEY (id),
+      KEY idx_mdt_commission_job (job_name),
+      KEY idx_mdt_commission_employee (employee_identifier)
+    )
+  ]])
+
+  MySQL.query([[
+    CREATE TABLE IF NOT EXISTS mdt_employee_stats (
+      id INT NOT NULL AUTO_INCREMENT,
+      job_name VARCHAR(60) NOT NULL,
+      employee_identifier VARCHAR(60) NOT NULL,
+      invoices_count INT NOT NULL DEFAULT 0,
+      sales_total INT NOT NULL DEFAULT 0,
+      commission_rate FLOAT NOT NULL DEFAULT 0.05,
+      commission_due INT NOT NULL DEFAULT 0,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_mdt_employee_stats (job_name, employee_identifier)
+    )
+  ]])
 end
 
 local function loadTaxSettings()
@@ -204,11 +250,233 @@ ESX.RegisterServerCallback('mdt:server:getEmployees', function(source, cb)
   )
 end)
 
+ESX.RegisterServerCallback('mdt:server:getEmployeeStats', function(source, cb)
+  local playerJob = getPlayerJob(source)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  MySQL.query(
+    [[
+      SELECT
+        users.identifier,
+        users.firstname,
+        users.lastname,
+        users.job_grade,
+        stats.invoices_count,
+        stats.sales_total,
+        stats.commission_rate,
+        stats.commission_due
+      FROM users
+      LEFT JOIN mdt_employee_stats stats
+        ON stats.employee_identifier = users.identifier
+        AND stats.job_name = users.job
+      WHERE users.job = ?
+    ]],
+    { playerJob.name },
+    function(rows)
+      cb({ ok = true, employees = rows or {} })
+    end
+  )
+end)
+
+ESX.RegisterServerCallback('mdt:server:updateCommissionRate', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+  if not payload or not payload.identifier or not payload.rate then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  MySQL.update(
+    [[
+      INSERT INTO mdt_employee_stats (job_name, employee_identifier, commission_rate)
+      VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE commission_rate = VALUES(commission_rate)
+    ]],
+    { playerJob.name, payload.identifier, payload.rate },
+    function()
+      refreshClients('employees')
+      cb({ ok = true })
+    end
+  )
+end)
+
+ESX.RegisterServerCallback('mdt:server:resetEmployeeStats', function(source, cb, identifier)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob or not identifier then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  MySQL.update(
+    [[
+      INSERT INTO mdt_employee_stats (job_name, employee_identifier, invoices_count, sales_total, commission_due)
+      VALUES (?, ?, 0, 0, 0)
+      ON DUPLICATE KEY UPDATE invoices_count = 0, sales_total = 0, commission_due = 0
+    ]],
+    { playerJob.name, identifier },
+    function()
+      refreshClients('employees')
+      cb({ ok = true })
+    end
+  )
+end)
+
 ESX.RegisterServerCallback('mdt:server:getTaxSettings', function(source, cb)
   cb({
     ok = true,
     taxes = Config.Taxes
   })
+end)
+
+ESX.RegisterServerCallback('mdt:server:getPartnerships', function(source, cb)
+  local playerJob = getPlayerJob(source)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  MySQL.query(
+    'SELECT id, partner_name, discount_rate, status, notes, updated_at FROM mdt_partnerships WHERE job_name = ? ORDER BY updated_at DESC',
+    { playerJob.name },
+    function(rows)
+      cb({ ok = true, partnerships = rows or {} })
+    end
+  )
+end)
+
+ESX.RegisterServerCallback('mdt:server:savePartnership', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+  if not payload or not payload.partner_name then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  if payload.id then
+    MySQL.update(
+      [[
+        UPDATE mdt_partnerships
+        SET partner_name = ?, discount_rate = ?, status = ?, notes = ?
+        WHERE id = ? AND job_name = ?
+      ]],
+      {
+        payload.partner_name,
+        payload.discount_rate or 0,
+        payload.status or 'active',
+        payload.notes,
+        payload.id,
+        playerJob.name
+      },
+      function()
+        refreshClients('partnerships')
+        cb({ ok = true })
+      end
+    )
+    return
+  end
+
+  MySQL.insert(
+    [[
+      INSERT INTO mdt_partnerships (job_name, partner_name, discount_rate, status, notes)
+      VALUES (?, ?, ?, ?, ?)
+    ]],
+    {
+      playerJob.name,
+      payload.partner_name,
+      payload.discount_rate or 0,
+      payload.status or 'active',
+      payload.notes
+    },
+    function()
+      refreshClients('partnerships')
+      cb({ ok = true })
+    end
+  )
+end)
+
+ESX.RegisterServerCallback('mdt:server:getCommissions', function(source, cb)
+  local playerJob = getPlayerJob(source)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  MySQL.query(
+    [[
+      SELECT id, employee_name, amount, status, created_at
+      FROM mdt_commission_payouts
+      WHERE job_name = ?
+      ORDER BY created_at DESC
+      LIMIT 200
+    ]],
+    { playerJob.name },
+    function(rows)
+      cb({ ok = true, payouts = rows or {} })
+    end
+  )
+end)
+
+ESX.RegisterServerCallback('mdt:server:createCommissionPayout', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+  if not payload or not payload.employeeIdentifier or not payload.employeeName or not payload.amount then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  MySQL.insert(
+    [[
+      INSERT INTO mdt_commission_payouts (job_name, employee_identifier, employee_name, amount, status)
+      VALUES (?, ?, ?, ?, ?)
+    ]],
+    {
+      playerJob.name,
+      payload.employeeIdentifier,
+      payload.employeeName,
+      payload.amount,
+      payload.status or 'pending'
+    },
+    function()
+      refreshClients('commissions')
+      cb({ ok = true })
+    end
+  )
 end)
 
 ESX.RegisterServerCallback('mdt:server:getInvoices', function(source, cb)

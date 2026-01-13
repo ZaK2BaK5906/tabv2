@@ -58,6 +58,48 @@ RegisterNUICallback('mdt:updateTaxRate', function(data, cb)
   cb({ ok = true })
 end)
 
+RegisterNUICallback('mdt:getPartnerships', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getPartnerships', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:savePartnership', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:savePartnership', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:getCommissions', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getCommissions', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:createCommissionPayout', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:createCommissionPayout', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:getEmployeeStats', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getEmployeeStats', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:updateCommissionRate', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:updateCommissionRate', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:resetEmployeeStats', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:resetEmployeeStats', function(response)
+    cb(response)
+  end, data and data.identifier or nil)
+end)
+
 RegisterNetEvent('mdt:client:dataUpdated', function(payload)
   SendNUIMessage({
     type = 'mdt:dataUpdated',

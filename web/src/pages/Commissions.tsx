@@ -1,11 +1,49 @@
-const payouts = [
-  { id: 'COM-1182', employee: 'Mira Doucet', amount: '$1,850', date: '12/03/2026', status: 'Payée' },
-  { id: 'COM-1183', employee: 'Hugo Martel', amount: '$940', date: '12/03/2026', status: 'En attente' },
-  { id: 'COM-1184', employee: 'Lena Ortiz', amount: '$420', date: '11/03/2026', status: 'Payée' }
-];
+import { useEffect, useState } from 'react';
+import { fetchNui } from '../features/nui';
 
-const Commissions = () => (
-  <div className="space-y-8">
+type CommissionRow = {
+  id: number;
+  employee_name: string;
+  amount: number;
+  status: string;
+  created_at: string;
+};
+
+const currency = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0
+});
+
+const formatDate = (value: string) =>
+  new Date(value).toLocaleDateString('fr-FR', { dateStyle: 'short' });
+
+const Commissions = () => {
+  const [payouts, setPayouts] = useState<CommissionRow[]>([]);
+
+  const loadPayouts = () => {
+    fetchNui<{ ok: boolean; payouts: CommissionRow[] }>('mdt:getCommissions')
+      .then((response) => {
+        if (response.ok) {
+          setPayouts(response.payouts ?? []);
+        }
+      })
+      .catch(() => undefined);
+  };
+
+  useEffect(() => {
+    loadPayouts();
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'mdt:dataUpdated' && event.data?.entity === 'commissions') {
+        loadPayouts();
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  return (
+    <div className="space-y-8">
     <header className="flex items-center justify-between">
       <div>
         <h2 className="font-display text-2xl">Commissions & paiements</h2>
@@ -62,10 +100,10 @@ const Commissions = () => (
           <tbody>
             {payouts.map((payout) => (
               <tr key={payout.id} className="border-t border-white/5">
-                <td className="px-6 py-4 font-medium">{payout.id}</td>
-                <td className="px-6 py-4 text-white/70">{payout.employee}</td>
-                <td className="px-6 py-4">{payout.amount}</td>
-                <td className="px-6 py-4">{payout.date}</td>
+                <td className="px-6 py-4 font-medium">COM-{payout.id}</td>
+                <td className="px-6 py-4 text-white/70">{payout.employee_name}</td>
+                <td className="px-6 py-4">{currency.format(payout.amount)}</td>
+                <td className="px-6 py-4">{formatDate(payout.created_at)}</td>
                 <td className="px-6 py-4">
                   <span className="badge">{payout.status}</span>
                 </td>
@@ -81,6 +119,7 @@ const Commissions = () => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default Commissions;

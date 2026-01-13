@@ -1,32 +1,56 @@
-const employees = [
-  {
-    name: 'Mira Doucet',
-    grade: 'Boss',
-    invoices: 42,
-    sales: '$82,400',
-    commissionRate: '8%',
-    commissionDue: '$6,592'
-  },
-  {
-    name: 'Hugo Martel',
-    grade: 'Senior',
-    invoices: 28,
-    sales: '$46,900',
-    commissionRate: '5%',
-    commissionDue: '$2,345'
-  },
-  {
-    name: 'Lena Ortiz',
-    grade: 'Junior',
-    invoices: 17,
-    sales: '$21,300',
-    commissionRate: '4%',
-    commissionDue: '$852'
-  }
-];
+import { useEffect, useState } from 'react';
+import { fetchNui } from '../features/nui';
 
-const Employees = () => (
-  <div className="space-y-8">
+type EmployeeRow = {
+  identifier: string;
+  firstname?: string;
+  lastname?: string;
+  job_grade: number;
+  invoices_count?: number;
+  sales_total?: number;
+  commission_rate?: number;
+  commission_due?: number;
+};
+
+const currency = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0
+});
+
+const formatPercent = (value?: number) =>
+  value !== undefined ? `${Math.round(value * 100)}%` : '—';
+
+const Employees = () => {
+  const [rows, setRows] = useState<EmployeeRow[]>([]);
+
+  const loadEmployees = () => {
+    fetchNui<{ ok: boolean; employees: EmployeeRow[] }>('mdt:getEmployeeStats')
+      .then((response) => {
+        if (response.ok) {
+          setRows(response.employees ?? []);
+        }
+      })
+      .catch(() => undefined);
+  };
+
+  useEffect(() => {
+    loadEmployees();
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'mdt:dataUpdated' && event.data?.entity === 'employees') {
+        loadEmployees();
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const handleReset = (identifier: string) => {
+    fetchNui('mdt:resetEmployeeStats', { identifier }).catch(() => undefined);
+  };
+
+  return (
+    <div className="space-y-8">
     <header className="flex items-center justify-between">
       <div>
         <h2 className="font-display text-2xl">Gestion des employés</h2>
@@ -93,16 +117,25 @@ const Employees = () => (
             </tr>
           </thead>
           <tbody>
-            {employees.map((employee) => (
-              <tr key={employee.name} className="border-t border-white/5">
-                <td className="px-6 py-4 font-medium">{employee.name}</td>
-                <td className="px-6 py-4 text-white/70">{employee.grade}</td>
-                <td className="px-6 py-4">{employee.invoices}</td>
-                <td className="px-6 py-4">{employee.sales}</td>
+            {rows.map((employee) => (
+              <tr key={employee.identifier} className="border-t border-white/5">
+                <td className="px-6 py-4 font-medium">
+                  {[employee.firstname, employee.lastname].filter(Boolean).join(' ') ||
+                    employee.identifier}
+                </td>
+                <td className="px-6 py-4 text-white/70">{employee.job_grade ?? 0}</td>
+                <td className="px-6 py-4">{employee.invoices_count ?? 0}</td>
+                <td className="px-6 py-4">
+                  {currency.format(employee.sales_total ?? 0)}
+                </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-col">
-                    <span className="font-medium text-accent-500">{employee.commissionDue}</span>
-                    <span className="text-xs text-white/40">{employee.commissionRate}</span>
+                    <span className="font-medium text-accent-500">
+                      {currency.format(employee.commission_due ?? 0)}
+                    </span>
+                    <span className="text-xs text-white/40">
+                      {formatPercent(employee.commission_rate)}
+                    </span>
                   </div>
                 </td>
                 <td className="px-6 py-4">
@@ -116,7 +149,10 @@ const Employees = () => (
                     <button className="rounded-full border border-white/10 px-3 py-1 text-xs">
                       Virer
                     </button>
-                    <button className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">
+                    <button
+                      onClick={() => handleReset(employee.identifier)}
+                      className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/60"
+                    >
                       Reset stats
                     </button>
                   </div>
@@ -128,6 +164,7 @@ const Employees = () => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default Employees;
