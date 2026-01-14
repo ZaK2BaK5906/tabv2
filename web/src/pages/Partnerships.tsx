@@ -21,7 +21,9 @@ const Partnerships = () => {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingPartnership, setEditingPartnership] = useState<PartnershipRow | null>(null);
+  const [deletingPartnership, setDeletingPartnership] = useState<PartnershipRow | null>(null);
   const [isActioning, setIsActioning] = useState(false);
 
   // Form state
@@ -89,6 +91,22 @@ const Partnerships = () => {
       if (response.ok) {
         setShowModal(false);
         setEditingPartnership(null);
+        loadPartnerships();
+      }
+    } catch {
+      // ignore
+    }
+    setIsActioning(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingPartnership) return;
+    setIsActioning(true);
+    try {
+      const response = await fetchNui<{ ok: boolean }>('mdt:deletePartnership', { id: deletingPartnership.id });
+      if (response.ok) {
+        setShowDeleteModal(false);
+        setDeletingPartnership(null);
         loadPartnerships();
       }
     } catch {
@@ -185,7 +203,7 @@ const Partnerships = () => {
                 <th className="px-6 py-4">Reduction</th>
                 <th className="px-6 py-4">Statut</th>
                 <th className="px-6 py-4">Notes</th>
-                {isBoss && <th className="px-6 py-4">Action</th>}
+                {isBoss && <th className="px-6 py-4">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -207,12 +225,23 @@ const Partnerships = () => {
                   <td className="px-6 py-4 text-white/60">{partnership.notes || '—'}</td>
                   {isBoss && (
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => openEditModal(partnership)}
-                        className="text-accent-500 transition hover:text-accent-600"
-                      >
-                        Modifier
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openEditModal(partnership)}
+                          className="text-accent-500 transition hover:text-accent-600"
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeletingPartnership(partnership);
+                            setShowDeleteModal(true);
+                          }}
+                          className="text-red-400 transition hover:text-red-500"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -314,6 +343,41 @@ const Partnerships = () => {
                 className="rounded-full bg-accent-600 px-4 py-2 text-sm text-base-950 disabled:opacity-50"
               >
                 {isActioning ? 'Enregistrement...' : editingPartnership ? 'Modifier' : 'Creer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingPartnership && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="glass-panel w-full max-w-md rounded-2xl p-6">
+            <h3 className="font-display text-lg text-red-400">Supprimer le partenariat</h3>
+            <p className="text-sm text-white/50">
+              Etes-vous sur de vouloir supprimer le partenariat avec {deletingPartnership.partner_name} ?
+            </p>
+
+            <p className="mt-4 text-sm text-white/70">
+              Cette action est irreversible.
+            </p>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingPartnership(null);
+                }}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/70"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isActioning}
+                className="rounded-full bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+              >
+                {isActioning ? 'Suppression...' : 'Confirmer la suppression'}
               </button>
             </div>
           </div>

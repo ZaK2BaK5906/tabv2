@@ -7,17 +7,41 @@ import { usePlayerStore } from '../store/playerStore';
 const ShellLayout = ({ children }: { children: React.ReactNode }) => {
   const { player } = usePlayerStore();
 
-  // Filter routes based on player job
+  // Determine user role
+  const jobName = player?.job?.name || 'unemployed';
+  const isBoss = player?.isBoss ?? false;
+  const isDoj = jobName === 'doj';
+  const isDealership = jobName === 'dealership' || jobName === 'cardealer' || jobName === 'concessionnaire';
+  const isUnemployed = !jobName || jobName === 'unemployed';
+
+  // Filter routes based on player role
   const visibleRoutes = routes.filter((route) => {
-    // Taxes/DOJ only for DOJ job
+    // Citizen (unemployed) - only sees their invoices
+    if (isUnemployed) {
+      return route.path === '/my-invoices';
+    }
+
+    // DOJ page - only for DOJ
     if (route.path === '/taxes') {
-      return player?.job?.name === 'doj';
+      return isDoj;
     }
-    // Dealership only for dealership/cardealer jobs
+
+    // Dealership page - only for dealership jobs
     if (route.path === '/dealership') {
-      return player?.job?.name === 'dealership' || player?.job?.name === 'cardealer' || player?.job?.name === 'concessionnaire';
+      return isDealership;
     }
-    return true;
+
+    // Boss-only pages
+    if (route.path === '/employees' || route.path === '/commissions' || route.path === '/partnerships' || route.path === '/products') {
+      return isBoss;
+    }
+
+    // Employee pages: Dashboard, Invoices, MyInvoices
+    if (route.path === '/' || route.path === '/invoices' || route.path === '/my-invoices') {
+      return true;
+    }
+
+    return false;
   });
 
   return (

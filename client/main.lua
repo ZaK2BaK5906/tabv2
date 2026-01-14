@@ -279,6 +279,74 @@ RegisterNUICallback('mdt:payEmployeeCommission', function(data, cb)
 end)
 
 -- ============================================
+-- PARTNERSHIP MANAGEMENT
+-- ============================================
+
+RegisterNUICallback('mdt:deletePartnership', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:deletePartnership', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+-- ============================================
+-- DOJ SYSTEM
+-- ============================================
+
+RegisterNUICallback('mdt:getAllSocieties', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getAllSocieties', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:getDojStats', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getDojStats', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:fineCompany', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:fineCompany', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:freezeCompany', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:freezeCompany', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:unfreezeCompany', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:unfreezeCompany', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:forceAudit', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:forceAudit', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:forcePayment', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:forcePayment', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:exportCompanyData', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:exportCompanyData', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:getCompanyDojHistory', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:getCompanyDojHistory', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+-- ============================================
 -- CITIZEN INVOICE SYSTEM
 -- ============================================
 

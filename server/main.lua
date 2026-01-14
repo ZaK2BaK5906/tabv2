@@ -160,6 +160,24 @@ local function ensureTables()
       UNIQUE KEY uniq_mdt_employee_stats (job_name, employee_identifier)
     )
   ]])
+
+  MySQL.query([[
+    CREATE TABLE IF NOT EXISTS mdt_doj_actions (
+      id INT NOT NULL AUTO_INCREMENT,
+      job_name VARCHAR(60) NOT NULL,
+      action_type VARCHAR(40) NOT NULL,
+      amount INT NOT NULL DEFAULT 0,
+      reason VARCHAR(255) DEFAULT NULL,
+      agent_identifier VARCHAR(60) DEFAULT NULL,
+      status VARCHAR(40) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      resolved_at TIMESTAMP NULL DEFAULT NULL,
+      PRIMARY KEY (id),
+      KEY idx_mdt_doj_job (job_name),
+      KEY idx_mdt_doj_type (action_type),
+      KEY idx_mdt_doj_status (status)
+    )
+  ]])
 end
 
 local function loadTaxSettings()
@@ -627,6 +645,39 @@ ESX.RegisterServerCallback('mdt:server:savePartnership', function(source, cb, pa
         { name = 'Partenaire', value = payload.partner_name, inline = true },
         { name = 'Réduction', value = tostring(payload.discount_rate or 0), inline = true },
         { name = 'Statut', value = payload.status or 'active', inline = true }
+      })
+      cb({ ok = true })
+    end
+  )
+end)
+
+-- Delete a partnership
+ESX.RegisterServerCallback('mdt:server:deletePartnership', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+  if not payload or not payload.id then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  MySQL.update(
+    'DELETE FROM mdt_partnerships WHERE id = ? AND job_name = ?',
+    { payload.id, playerJob.name },
+    function()
+      refreshClients('partnerships')
+      sendWebhook('Partenariat supprimé', {
+        { name = 'Patron', value = playerLabel(playerId), inline = true },
+        { name = 'Entreprise', value = playerJob.name, inline = true },
+        { name = 'ID Partenariat', value = tostring(payload.id), inline = true }
       })
       cb({ ok = true })
     end
@@ -1765,5 +1816,434 @@ ESX.RegisterServerCallback('mdt:server:assignVehicle', function(source, cb, payl
         cb({ ok = true, plate = plate })
       end)
     end)
+  end)
+end)
+
+-- ============================================
+-- DOJ SYSTEM (Department of Justice)
+-- ============================================
+
+-- Check if player is DOJ
+local function isDoj(playerId)
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then return false end
+  return playerJob.name == 'doj'
+end
+
+-- Get all societies for DOJ
+ESX.RegisterServerCallback('mdt:server:getAllSocieties', function(source, cb)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  -- Get societies from addon_account_data
+  MySQL.query([[
+    SELECT
+      REPLACE(account_name, 'society_', '') as job_name,
+      money
+    FROM addon_account_data
+    WHERE account_name LIKE 'society_%'
+    ORDER BY money DESC
+  ]], {}, function(accountRows)
+    local societies = {}
+
+    for _, row in ipairs(accountRows or {}) do
+      local jobName = row.job_name
+
+      -- Get job label from jobs table
+      MySQL.query('SELECT label FROM jobs WHERE name = ?', { jobName }, function(jobRows)
+        local label = jobRows and jobRows[1] and jobRows[1].label or jobName
+
+        -- Get tax stats for this society
+        MySQL.query([[
+          SELECT
+            COALESCE(SUM(tax_amount), 0) as taxes_generated,
+            COALESCE(SUM(CASE WHEN status = 'pending' THEN tax_amount ELSE 0 END), 0) as taxes_pending,
+            COALESCE(SUM(CASE WHEN status = 'paid' THEN tax_amount ELSE 0 END), 0) as taxes_paid,
+            COUNT(*) as invoice_count
+          FROM mdt_invoices
+          WHERE job_name = ?
+        ]], { jobName }, function(taxRows)
+          local taxData = taxRows and taxRows[1] or {}
+
+          -- Check if frozen
+          MySQL.query('SELECT * FROM mdt_doj_actions WHERE job_name = ? AND action_type = "freeze" AND status = "active"', { jobName }, function(freezeRows)
+            local isFrozen = freezeRows and #freezeRows > 0
+
+            table.insert(societies, {
+              job_name = jobName,
+              label = label,
+              money = row.money or 0,
+              taxes_generated = taxData.taxes_generated or 0,
+              taxes_pending = taxData.taxes_pending or 0,
+              taxes_paid = taxData.taxes_paid or 0,
+              invoice_count = taxData.invoice_count or 0,
+              is_frozen = isFrozen
+            })
+
+            -- Once all processed, send callback
+            if #societies == #accountRows then
+              cb({ ok = true, societies = societies })
+            end
+          end)
+        end)
+      end)
+    end
+
+    -- If no societies found
+    if #accountRows == 0 then
+      cb({ ok = true, societies = {} })
+    end
+  end)
+end)
+
+-- Get DOJ stats
+ESX.RegisterServerCallback('mdt:server:getDojStats', function(source, cb)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  local stats = {
+    totalTaxesGenerated = 0,
+    totalTaxesPending = 0,
+    totalTaxesPaid = 0,
+    societiesCount = 0,
+    frozenCount = 0,
+    activeFines = 0,
+    dojBalance = 0
+  }
+
+  -- Get total taxes
+  MySQL.query([[
+    SELECT
+      COALESCE(SUM(tax_amount), 0) as total_taxes,
+      COALESCE(SUM(CASE WHEN status = 'pending' THEN tax_amount ELSE 0 END), 0) as pending_taxes,
+      COALESCE(SUM(CASE WHEN status = 'paid' THEN tax_amount ELSE 0 END), 0) as paid_taxes
+    FROM mdt_invoices
+  ]], {}, function(taxRows)
+    if taxRows and taxRows[1] then
+      stats.totalTaxesGenerated = taxRows[1].total_taxes or 0
+      stats.totalTaxesPending = taxRows[1].pending_taxes or 0
+      stats.totalTaxesPaid = taxRows[1].paid_taxes or 0
+    end
+
+    -- Get societies count
+    MySQL.query('SELECT COUNT(*) as count FROM addon_account_data WHERE account_name LIKE "society_%"', {}, function(societyRows)
+      if societyRows and societyRows[1] then
+        stats.societiesCount = societyRows[1].count or 0
+      end
+
+      -- Get frozen count
+      MySQL.query('SELECT COUNT(DISTINCT job_name) as count FROM mdt_doj_actions WHERE action_type = "freeze" AND status = "active"', {}, function(frozenRows)
+        if frozenRows and frozenRows[1] then
+          stats.frozenCount = frozenRows[1].count or 0
+        end
+
+        -- Get active fines
+        MySQL.query('SELECT COALESCE(SUM(amount), 0) as total FROM mdt_doj_actions WHERE action_type = "fine" AND status = "pending"', {}, function(fineRows)
+          if fineRows and fineRows[1] then
+            stats.activeFines = fineRows[1].total or 0
+          end
+
+          -- Get DOJ balance
+          TriggerEvent('esx_addonaccount:getSharedAccount', 'society_doj', function(account)
+            if account then
+              stats.dojBalance = account.money
+            end
+            cb({ ok = true, stats = stats })
+          end)
+        end)
+      end)
+    end)
+  end)
+end)
+
+-- Fine a company (Amende)
+ESX.RegisterServerCallback('mdt:server:fineCompany', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.job_name or not payload.amount or not payload.reason then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local amount = tonumber(payload.amount) or 0
+  if amount <= 0 then
+    cb({ ok = false, reason = 'invalid_amount' })
+    return
+  end
+
+  -- Record the fine
+  MySQL.insert([[
+    INSERT INTO mdt_doj_actions (job_name, action_type, amount, reason, agent_identifier, status)
+    VALUES (?, 'fine', ?, ?, ?, 'pending')
+  ]], { payload.job_name, amount, payload.reason, getPlayerJob(source).identifier or 'unknown' }, function()
+    refreshClients('doj')
+    sendWebhook('Amende DOJ', {
+      { name = 'Agent DOJ', value = playerLabel(source), inline = true },
+      { name = 'Entreprise', value = payload.job_name, inline = true },
+      { name = 'Montant', value = tostring(amount), inline = true },
+      { name = 'Raison', value = payload.reason, inline = false }
+    })
+    cb({ ok = true })
+  end)
+end)
+
+-- Freeze a company
+ESX.RegisterServerCallback('mdt:server:freezeCompany', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.job_name or not payload.reason then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  -- Check if already frozen
+  MySQL.query('SELECT * FROM mdt_doj_actions WHERE job_name = ? AND action_type = "freeze" AND status = "active"', { payload.job_name }, function(rows)
+    if rows and #rows > 0 then
+      cb({ ok = false, reason = 'already_frozen' })
+      return
+    end
+
+    -- Record the freeze
+    MySQL.insert([[
+      INSERT INTO mdt_doj_actions (job_name, action_type, reason, agent_identifier, status)
+      VALUES (?, 'freeze', ?, ?, 'active')
+    ]], { payload.job_name, payload.reason, getPlayerJob(source).identifier or 'unknown' }, function()
+      refreshClients('doj')
+      sendWebhook('Gel Entreprise DOJ', {
+        { name = 'Agent DOJ', value = playerLabel(source), inline = true },
+        { name = 'Entreprise', value = payload.job_name, inline = true },
+        { name = 'Raison', value = payload.reason, inline = false }
+      })
+      cb({ ok = true })
+    end)
+  end)
+end)
+
+-- Unfreeze a company
+ESX.RegisterServerCallback('mdt:server:unfreezeCompany', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.job_name then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  MySQL.update('UPDATE mdt_doj_actions SET status = "resolved" WHERE job_name = ? AND action_type = "freeze" AND status = "active"', { payload.job_name }, function()
+    refreshClients('doj')
+    sendWebhook('Degel Entreprise DOJ', {
+      { name = 'Agent DOJ', value = playerLabel(source), inline = true },
+      { name = 'Entreprise', value = payload.job_name, inline = true }
+    })
+    cb({ ok = true })
+  end)
+end)
+
+-- Force audit on a company
+ESX.RegisterServerCallback('mdt:server:forceAudit', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.job_name then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  -- Record the audit
+  MySQL.insert([[
+    INSERT INTO mdt_doj_actions (job_name, action_type, reason, agent_identifier, status)
+    VALUES (?, 'audit', ?, ?, 'active')
+  ]], { payload.job_name, payload.reason or 'Audit force', getPlayerJob(source).identifier or 'unknown' }, function()
+    refreshClients('doj')
+    sendWebhook('Audit Force DOJ', {
+      { name = 'Agent DOJ', value = playerLabel(source), inline = true },
+      { name = 'Entreprise', value = payload.job_name, inline = true }
+    })
+    cb({ ok = true })
+  end)
+end)
+
+-- Force payment of taxes
+ESX.RegisterServerCallback('mdt:server:forcePayment', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.job_name then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  -- Get pending taxes for this company
+  MySQL.query([[
+    SELECT COALESCE(SUM(tax_amount), 0) as pending_taxes
+    FROM mdt_invoices
+    WHERE job_name = ? AND status = 'pending'
+  ]], { payload.job_name }, function(rows)
+    local pendingTaxes = rows and rows[1] and rows[1].pending_taxes or 0
+
+    if pendingTaxes <= 0 then
+      cb({ ok = false, reason = 'no_pending_taxes' })
+      return
+    end
+
+    -- Get society balance
+    TriggerEvent('esx_addonaccount:getSharedAccount', 'society_' .. payload.job_name, function(account)
+      local processPayment = function(societyMoney)
+        if societyMoney < pendingTaxes then
+          cb({ ok = false, reason = 'insufficient_funds', needed = pendingTaxes, available = societyMoney })
+          return
+        end
+
+        -- Remove from society
+        if account then
+          account.removeMoney(pendingTaxes)
+        else
+          MySQL.update('UPDATE addon_account_data SET money = money - ? WHERE account_name = ?', { pendingTaxes, 'society_' .. payload.job_name })
+        end
+
+        -- Add to DOJ
+        TriggerEvent('esx_addonaccount:getSharedAccount', 'society_doj', function(dojAccount)
+          if dojAccount then
+            dojAccount.addMoney(pendingTaxes)
+          else
+            MySQL.update('UPDATE addon_account_data SET money = money + ? WHERE account_name = ?', { pendingTaxes, 'society_doj' })
+          end
+        end)
+
+        -- Mark invoices as paid
+        MySQL.update('UPDATE mdt_invoices SET status = "paid", paid_at = NOW() WHERE job_name = ? AND status = "pending"', { payload.job_name })
+
+        -- Record the action
+        MySQL.insert([[
+          INSERT INTO mdt_doj_actions (job_name, action_type, amount, reason, agent_identifier, status)
+          VALUES (?, 'force_payment', ?, 'Paiement force par DOJ', ?, 'completed')
+        ]], { payload.job_name, pendingTaxes, getPlayerJob(source).identifier or 'unknown' })
+
+        refreshClients('doj')
+        refreshClients('invoices')
+        sendWebhook('Paiement Force DOJ', {
+          { name = 'Agent DOJ', value = playerLabel(source), inline = true },
+          { name = 'Entreprise', value = payload.job_name, inline = true },
+          { name = 'Montant', value = tostring(pendingTaxes), inline = true }
+        })
+        cb({ ok = true, amount = pendingTaxes })
+      end
+
+      if account then
+        processPayment(account.money)
+      else
+        MySQL.query('SELECT money FROM addon_account_data WHERE account_name = ?', { 'society_' .. payload.job_name }, function(accountRows)
+          processPayment(accountRows and accountRows[1] and accountRows[1].money or 0)
+        end)
+      end
+    end)
+  end)
+end)
+
+-- Export company data (for backup/audit)
+ESX.RegisterServerCallback('mdt:server:exportCompanyData', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.job_name then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local jobName = payload.job_name
+  local exportData = {
+    job_name = jobName,
+    exported_at = os.date('%Y-%m-%d %H:%M:%S'),
+    exported_by = playerLabel(source)
+  }
+
+  -- Get society balance
+  MySQL.query('SELECT money FROM addon_account_data WHERE account_name = ?', { 'society_' .. jobName }, function(accountRows)
+    exportData.balance = accountRows and accountRows[1] and accountRows[1].money or 0
+
+    -- Get employees
+    MySQL.query('SELECT identifier, firstname, lastname, job_grade FROM users WHERE job = ?', { jobName }, function(empRows)
+      exportData.employees = empRows or {}
+
+      -- Get invoices
+      MySQL.query([[
+        SELECT invoice_id, issuer_name, target_name, mode, product_label, amount_ht, tax_amount, total_ttc, status, created_at
+        FROM mdt_invoices
+        WHERE job_name = ?
+        ORDER BY created_at DESC
+        LIMIT 500
+      ]], { jobName }, function(invRows)
+        exportData.invoices = invRows or {}
+
+        -- Get DOJ actions
+        MySQL.query([[
+          SELECT action_type, amount, reason, status, created_at
+          FROM mdt_doj_actions
+          WHERE job_name = ?
+          ORDER BY created_at DESC
+        ]], { jobName }, function(actRows)
+          exportData.doj_actions = actRows or {}
+
+          -- Get partnerships
+          MySQL.query('SELECT partner_name, discount_rate, status, notes FROM mdt_partnerships WHERE job_name = ?', { jobName }, function(partRows)
+            exportData.partnerships = partRows or {}
+
+            -- Record the export
+            MySQL.insert([[
+              INSERT INTO mdt_doj_actions (job_name, action_type, reason, agent_identifier, status)
+              VALUES (?, 'export', 'Export des donnees entreprise', ?, 'completed')
+            ]], { jobName, getPlayerJob(source).identifier or 'unknown' })
+
+            sendWebhook('Export Donnees DOJ', {
+              { name = 'Agent DOJ', value = playerLabel(source), inline = true },
+              { name = 'Entreprise', value = jobName, inline = true }
+            })
+
+            cb({ ok = true, data = exportData })
+          end)
+        end)
+      end)
+    end)
+  end)
+end)
+
+-- Get DOJ action history for a company
+ESX.RegisterServerCallback('mdt:server:getCompanyDojHistory', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.job_name then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  MySQL.query([[
+    SELECT id, action_type, amount, reason, agent_identifier, status, created_at
+    FROM mdt_doj_actions
+    WHERE job_name = ?
+    ORDER BY created_at DESC
+    LIMIT 100
+  ]], { payload.job_name }, function(rows)
+    cb({ ok = true, history = rows or {} })
   end)
 end)
