@@ -642,7 +642,7 @@ ESX.RegisterServerCallback('mdt:server:getCommissions', function(source, cb)
 
   MySQL.query(
     [[
-      SELECT id, employee_name, amount, status, created_at
+      SELECT id, employee_name, employee_identifier, amount, status, created_at
       FROM mdt_commission_payouts
       WHERE job_name = ?
       ORDER BY created_at DESC
@@ -653,6 +653,111 @@ ESX.RegisterServerCallback('mdt:server:getCommissions', function(source, cb)
       cb({ ok = true, payouts = rows or {} })
     end
   )
+end)
+
+-- Pay all pending commissions
+ESX.RegisterServerCallback('mdt:server:payAllCommissions', function(source, cb)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  -- Get all employees with commission_due > 0
+  MySQL.query([[
+    SELECT
+      users.identifier,
+      users.firstname,
+      users.lastname,
+      stats.commission_due
+    FROM users
+    LEFT JOIN mdt_employee_stats stats
+      ON stats.employee_identifier COLLATE utf8mb4_general_ci = users.identifier COLLATE utf8mb4_general_ci
+      AND stats.job_name COLLATE utf8mb4_general_ci = users.job COLLATE utf8mb4_general_ci
+    WHERE users.job = ? AND stats.commission_due > 0
+  ]], { playerJob.name }, function(employees)
+    if not employees or #employees == 0 then
+      cb({ ok = true, paid = 0 })
+      return
+    end
+
+    -- Calculate total needed
+    local totalNeeded = 0
+    for _, emp in ipairs(employees) do
+      totalNeeded = totalNeeded + (emp.commission_due or 0)
+    end
+
+    -- Check society funds
+    TriggerEvent('esx_addonaccount:getSharedAccount', 'society_' .. playerJob.name, function(account)
+      local processPay = function(societyMoney)
+        if societyMoney < totalNeeded then
+          cb({ ok = false, reason = 'insufficient_funds', needed = totalNeeded, available = societyMoney })
+          return
+        end
+
+        -- Pay each employee
+        local paidCount = 0
+        for _, emp in ipairs(employees) do
+          local amount = emp.commission_due or 0
+          local empName = string.format('%s %s', emp.firstname or '', emp.lastname or '')
+
+          -- Find target player online
+          local targetPlayer = nil
+          for _, xPlayer in pairs(ESX.GetPlayers()) do
+            local p = ESX.GetPlayerFromId(xPlayer)
+            if p and p.identifier == emp.identifier then
+              targetPlayer = p
+              break
+            end
+          end
+
+          if targetPlayer then
+            targetPlayer.addAccountMoney('bank', amount, 'Commission payment')
+          else
+            MySQL.update('UPDATE users SET bank = bank + ? WHERE identifier = ?', { amount, emp.identifier })
+          end
+
+          -- Create payout record
+          MySQL.insert('INSERT INTO mdt_commission_payouts (job_name, employee_identifier, employee_name, amount, status, paid_at) VALUES (?, ?, ?, ?, "paid", NOW())', { playerJob.name, emp.identifier, empName, amount })
+
+          paidCount = paidCount + 1
+        end
+
+        -- Remove money from society
+        if account then
+          account.removeMoney(totalNeeded)
+        else
+          MySQL.update('UPDATE addon_account_data SET money = money - ? WHERE account_name = ?', { totalNeeded, 'society_' .. playerJob.name })
+        end
+
+        -- Reset all commission_due
+        MySQL.update('UPDATE mdt_employee_stats SET commission_due = 0, invoices_count = 0, sales_total = 0 WHERE job_name = ? AND commission_due > 0', { playerJob.name })
+
+        refreshClients('employees')
+        refreshClients('commissions')
+        sendWebhook('Toutes commissions payées', {
+          { name = 'Patron', value = playerLabel(playerId), inline = true },
+          { name = 'Employés payés', value = tostring(paidCount), inline = true },
+          { name = 'Total payé', value = tostring(totalNeeded), inline = true }
+        })
+        cb({ ok = true, paid = paidCount, total = totalNeeded })
+      end
+
+      if account then
+        processPay(account.money)
+      else
+        MySQL.query('SELECT money FROM addon_account_data WHERE account_name = ?', { 'society_' .. playerJob.name }, function(rows)
+          processPay(rows and rows[1] and rows[1].money or 0)
+        end)
+      end
+    end)
+  end)
 end)
 
 ESX.RegisterServerCallback('mdt:server:createCommissionPayout', function(source, cb, payload)
@@ -760,11 +865,33 @@ ESX.RegisterServerCallback('mdt:server:createInvoice', function(source, cb, payl
       payload.taxFreeReason
     },
     function()
+      -- Update employee stats (invoices count, sales total, commission due)
+      local commissionRate = Config.Commissions and Config.Commissions.defaultRate or 0.05
+      local commissionAmount = math.floor(total * commissionRate)
+
+      MySQL.query('SELECT commission_rate FROM mdt_employee_stats WHERE job_name = ? AND employee_identifier = ?', { playerJob.name, playerJob.identifier }, function(statsRows)
+        local rate = commissionRate
+        if statsRows and statsRows[1] and statsRows[1].commission_rate then
+          rate = statsRows[1].commission_rate
+        end
+        local commission = math.floor(total * rate)
+
+        MySQL.query([[
+          INSERT INTO mdt_employee_stats (job_name, employee_identifier, invoices_count, sales_total, commission_rate, commission_due)
+          VALUES (?, ?, 1, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            invoices_count = invoices_count + 1,
+            sales_total = sales_total + VALUES(sales_total),
+            commission_due = commission_due + ?
+        ]], { playerJob.name, playerJob.identifier, total, rate, commission, commission })
+      end)
+
       if payload.giveItem then
         -- Give receipt to seller (original) and buyer (duplicate)
         giveReceiptsToBoth(source, payload)
       end
       refreshClients('invoices')
+      refreshClients('employees')
       sendWebhook('Facture créée', {
         { name = 'Émetteur', value = playerLabel(source), inline = true },
         { name = 'Entreprise', value = playerJob.name, inline = true },

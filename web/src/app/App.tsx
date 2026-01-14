@@ -17,6 +17,13 @@ const App = () => {
     fetchNui('mdt:close').catch(() => undefined);
   }, [setOpen, clearPlayer]);
 
+  // CRITICAL: Force closed state on initial mount
+  useEffect(() => {
+    // Ensure we start closed
+    setOpen(false);
+    document.body.classList.remove('mdt-open');
+  }, []);
+
   // Listen for NUI messages from client
   useEffect(() => {
     const handler = (event: MessageEvent) => {

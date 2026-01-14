@@ -181,6 +181,12 @@ RegisterNUICallback('mdt:createCommissionPayout', function(data, cb)
   end, data or {})
 end)
 
+RegisterNUICallback('mdt:payAllCommissions', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:payAllCommissions', function(response)
+    cb(response)
+  end)
+end)
+
 RegisterNUICallback('mdt:getEmployeeStats', function(_, cb)
   ESX.TriggerServerCallback('mdt:server:getEmployeeStats', function(response)
     cb(response)

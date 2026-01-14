@@ -39,6 +39,7 @@ const Employees = () => {
   const [showHireModal, setShowHireModal] = useState(false);
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
+  const [showFireModal, setShowFireModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRow | null>(null);
 
   // Hire modal state
@@ -107,12 +108,14 @@ const Employees = () => {
     setIsActioning(false);
   };
 
-  const handleFire = async (identifier: string) => {
-    if (!confirm('Etes-vous sur de vouloir licencier cet employe ?')) return;
+  const handleFireConfirm = async () => {
+    if (!selectedEmployee) return;
     setIsActioning(true);
     try {
-      const response = await fetchNui<{ ok: boolean }>('mdt:fireEmployeeByIdentifier', { identifier });
+      const response = await fetchNui<{ ok: boolean }>('mdt:fireEmployeeByIdentifier', { identifier: selectedEmployee.identifier });
       if (response.ok) {
+        setShowFireModal(false);
+        setSelectedEmployee(null);
         loadEmployees();
       }
     } catch {
@@ -309,7 +312,10 @@ const Employees = () => {
                           Promouvoir
                         </button>
                         <button
-                          onClick={() => handleFire(employee.identifier)}
+                          onClick={() => {
+                            setSelectedEmployee(employee);
+                            setShowFireModal(true);
+                          }}
                           disabled={isActioning}
                           className="rounded-full border border-white/10 px-3 py-1 text-xs text-red-400 disabled:opacity-50"
                         >
@@ -484,6 +490,41 @@ const Employees = () => {
                 className="rounded-full bg-accent-600 px-4 py-2 text-sm text-base-950 disabled:opacity-50"
               >
                 {isActioning ? 'Paiement...' : 'Confirmer le paiement'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fire Confirmation Modal */}
+      {showFireModal && selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="glass-panel w-full max-w-md rounded-2xl p-6">
+            <h3 className="font-display text-lg text-red-400">Licencier un employe</h3>
+            <p className="text-sm text-white/50">
+              Etes-vous sur de vouloir licencier {[selectedEmployee.firstname, selectedEmployee.lastname].filter(Boolean).join(' ') || selectedEmployee.identifier} ?
+            </p>
+
+            <p className="mt-4 text-sm text-white/70">
+              Cette action est irreversible. L'employe perdra son poste.
+            </p>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowFireModal(false);
+                  setSelectedEmployee(null);
+                }}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/70"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleFireConfirm}
+                disabled={isActioning}
+                className="rounded-full bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+              >
+                {isActioning ? 'Licenciement...' : 'Confirmer le licenciement'}
               </button>
             </div>
           </div>
