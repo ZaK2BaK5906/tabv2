@@ -13,8 +13,7 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
   width: 100%;
   margin: 0;
@@ -29,26 +28,33 @@ body {
   background-color: transparent !important;
 }
 
-/* CRITICAL: Hide everything when tablet is closed */
-body:not(.mdt-open) {
-  background: transparent !important;
-}
-
-body:not(.mdt-open) #root {
+/* CRITICAL: Hide #root by default */
+#root {
+  height: 100%;
+  width: 100%;
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  background: transparent !important;
+}
+
+/* Only show when mdt-open class is on body */
+body.mdt-open #root {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 .nui-root {
-  @apply flex h-screen w-screen items-center justify-center bg-transparent;
+  @apply flex h-screen w-screen items-center justify-center;
+  background: transparent !important;
 }
 
 .tablet-frame {
   @apply flex h-[70vh] w-[72vw] overflow-hidden rounded-[2.5rem] border border-white/10 text-white shadow-soft;
-  background: rgba(10, 14, 20, 0.82);
-  backdrop-filter: blur(18px);
+  background: rgba(10, 14, 20, 0.95);
   transform: perspective(1600px) rotateX(6deg) rotateY(-10deg);
   box-shadow:
     0 24px 80px rgba(5, 8, 15, 0.65),
@@ -64,7 +70,7 @@ body:not(.mdt-open) #root {
 }
 
 .glass-panel {
-  @apply bg-surface-800 backdrop-blur-xl border border-white/5 shadow-card;
+  @apply bg-surface-800 border border-white/5 shadow-card;
 }
 
 .glow-divider {

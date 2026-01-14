@@ -865,6 +865,388 @@ exports('getModule', function(name)
 end)
 
 -- ============================================
+-- PRODUCTS SYSTEM
+-- ============================================
+
+-- Get products for a job
+ESX.RegisterServerCallback('mdt:server:getProducts', function(source, cb)
+  local playerJob = getPlayerJob(source)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  MySQL.query(
+    'SELECT id, label, price, COALESCE(description, "") as description, COALESCE(status, "active") as status FROM mdt_products WHERE job_name = ? ORDER BY label',
+    { playerJob.name },
+    function(rows)
+      cb({ ok = true, products = rows or {} })
+    end
+  )
+end)
+
+-- Save a product (create or update)
+ESX.RegisterServerCallback('mdt:server:saveProduct', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  if not payload or not payload.label or not payload.price then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  if payload.id then
+    -- Update existing product
+    MySQL.update(
+      'UPDATE mdt_products SET label = ?, price = ?, description = ?, status = ? WHERE id = ? AND job_name = ?',
+      { payload.label, payload.price, payload.description or '', payload.status or 'active', payload.id, playerJob.name },
+      function()
+        refreshClients('products')
+        sendWebhook('Produit modifié', {
+          { name = 'Patron', value = playerLabel(playerId), inline = true },
+          { name = 'Produit', value = payload.label, inline = true },
+          { name = 'Prix', value = tostring(payload.price), inline = true },
+          { name = 'Entreprise', value = playerJob.name, inline = true }
+        })
+        cb({ ok = true })
+      end
+    )
+    return
+  end
+
+  -- Create new product
+  MySQL.insert(
+    'INSERT INTO mdt_products (job_name, label, price, description, status) VALUES (?, ?, ?, ?, ?)',
+    { playerJob.name, payload.label, payload.price, payload.description or '', payload.status or 'active' },
+    function(insertId)
+      refreshClients('products')
+      sendWebhook('Produit créé', {
+        { name = 'Patron', value = playerLabel(playerId), inline = true },
+        { name = 'Produit', value = payload.label, inline = true },
+        { name = 'Prix', value = tostring(payload.price), inline = true },
+        { name = 'Entreprise', value = playerJob.name, inline = true }
+      })
+      cb({ ok = true, id = insertId })
+    end
+  )
+end)
+
+-- Delete a product
+ESX.RegisterServerCallback('mdt:server:deleteProduct', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  if not payload or not payload.id then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  MySQL.update(
+    'DELETE FROM mdt_products WHERE id = ? AND job_name = ?',
+    { payload.id, playerJob.name },
+    function()
+      refreshClients('products')
+      cb({ ok = true })
+    end
+  )
+end)
+
+-- ============================================
+-- PLAYER LOOKUP SYSTEM (for invoices)
+-- ============================================
+
+-- Get nearby players (for invoice target selection)
+ESX.RegisterServerCallback('mdt:server:getNearbyPlayers', function(source, cb)
+  local xPlayer = ESX.GetPlayerFromId(source)
+  if not xPlayer then
+    cb({ ok = false, reason = 'player_not_found' })
+    return
+  end
+
+  local sourceCoords = GetEntityCoords(GetPlayerPed(source))
+  local nearbyPlayers = {}
+  local playersToCheck = {}
+
+  for _, playerId in ipairs(GetPlayers()) do
+    local targetId = tonumber(playerId)
+    if targetId ~= source then
+      local targetPed = GetPlayerPed(targetId)
+      local targetCoords = GetEntityCoords(targetPed)
+      local distance = #(sourceCoords - targetCoords)
+
+      if distance < 10.0 then
+        local targetPlayer = ESX.GetPlayerFromId(targetId)
+        if targetPlayer then
+          table.insert(playersToCheck, { id = targetId, identifier = targetPlayer.identifier })
+        end
+      end
+    end
+  end
+
+  if #playersToCheck == 0 then
+    cb({ ok = true, players = {} })
+    return
+  end
+
+  local processed = 0
+  for _, p in ipairs(playersToCheck) do
+    MySQL.query('SELECT firstname, lastname FROM users WHERE identifier = ?', { p.identifier }, function(rows)
+      local name = 'Inconnu'
+      if rows and rows[1] then
+        name = string.format('%s %s', rows[1].firstname or '', rows[1].lastname or '')
+      end
+      table.insert(nearbyPlayers, { id = p.id, name = name, identifier = p.identifier })
+      processed = processed + 1
+      if processed >= #playersToCheck then
+        cb({ ok = true, players = nearbyPlayers })
+      end
+    end)
+  end
+end)
+
+-- Get player by server ID
+ESX.RegisterServerCallback('mdt:server:getPlayerById', function(source, cb, payload)
+  if not payload or not payload.id then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local targetId = tonumber(payload.id)
+  local targetPlayer = ESX.GetPlayerFromId(targetId)
+
+  if not targetPlayer then
+    cb({ ok = false, reason = 'player_not_found' })
+    return
+  end
+
+  MySQL.query('SELECT firstname, lastname FROM users WHERE identifier = ?', { targetPlayer.identifier }, function(rows)
+    local name = 'Inconnu'
+    if rows and rows[1] then
+      name = string.format('%s %s', rows[1].firstname or '', rows[1].lastname or '')
+    end
+
+    cb({
+      ok = true,
+      player = { id = targetId, name = name, identifier = targetPlayer.identifier }
+    })
+  end)
+end)
+
+-- ============================================
+-- EMPLOYEE MANAGEMENT (Hire, Fire, Promote, Pay)
+-- ============================================
+
+-- Pay commission to an employee
+ESX.RegisterServerCallback('mdt:server:payEmployeeCommission', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  if not payload or not payload.identifier or not payload.amount then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  local amount = tonumber(payload.amount) or 0
+  if amount <= 0 then
+    cb({ ok = false, reason = 'invalid_amount' })
+    return
+  end
+
+  TriggerEvent('esx_addonaccount:getSharedAccount', 'society_' .. playerJob.name, function(account)
+    local processPay = function(societyMoney)
+      if societyMoney < amount then
+        cb({ ok = false, reason = 'insufficient_funds' })
+        return
+      end
+
+      -- Find target player online
+      local targetPlayer = nil
+      for _, xPlayer in pairs(ESX.GetPlayers()) do
+        local p = ESX.GetPlayerFromId(xPlayer)
+        if p and p.identifier == payload.identifier then
+          targetPlayer = p
+          break
+        end
+      end
+
+      if targetPlayer then
+        targetPlayer.addAccountMoney('bank', amount, 'Commission payment')
+      else
+        MySQL.update('UPDATE users SET bank = bank + ? WHERE identifier = ?', { amount, payload.identifier })
+      end
+
+      if account then
+        account.removeMoney(amount)
+      else
+        MySQL.update('UPDATE addon_account_data SET money = money - ? WHERE account_name = ?', { amount, 'society_' .. playerJob.name })
+      end
+
+      MySQL.update('UPDATE mdt_employee_stats SET commission_due = 0, invoices_count = 0, sales_total = 0 WHERE job_name = ? AND employee_identifier = ?', { playerJob.name, payload.identifier })
+
+      MySQL.insert('INSERT INTO mdt_commission_payouts (job_name, employee_identifier, employee_name, amount, status, paid_at) VALUES (?, ?, ?, ?, "paid", NOW())', { playerJob.name, payload.identifier, payload.employeeName or 'Employe', amount })
+
+      refreshClients('employees')
+      refreshClients('commissions')
+      sendWebhook('Commission payée', {
+        { name = 'Patron', value = playerLabel(playerId), inline = true },
+        { name = 'Employé', value = payload.employeeName or payload.identifier, inline = true },
+        { name = 'Montant', value = tostring(amount), inline = true }
+      })
+      cb({ ok = true })
+    end
+
+    if account then
+      processPay(account.money)
+    else
+      MySQL.query('SELECT money FROM addon_account_data WHERE account_name = ?', { 'society_' .. playerJob.name }, function(rows)
+        processPay(rows and rows[1] and rows[1].money or 0)
+      end)
+    end
+  end)
+end)
+
+-- Hire employee by server ID
+ESX.RegisterServerCallback('mdt:server:hireEmployeeById', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  if not payload or not payload.targetId then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local bossJob = getPlayerJob(playerId)
+  local target = ESX.GetPlayerFromId(payload.targetId)
+  if not bossJob or not target then
+    cb({ ok = false, reason = 'invalid_target' })
+    return
+  end
+
+  target.setJob(bossJob.name, 0)
+  sendWebhook('Employé recruté', {
+    { name = 'Patron', value = playerLabel(playerId), inline = true },
+    { name = 'Employé', value = playerLabel(payload.targetId), inline = true },
+    { name = 'Entreprise', value = bossJob.name, inline = true }
+  })
+  cb({ ok = true })
+end)
+
+-- Fire employee by identifier
+ESX.RegisterServerCallback('mdt:server:fireEmployeeByIdentifier', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  if not payload or not payload.identifier then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local bossJob = getPlayerJob(playerId)
+  if not bossJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  local targetPlayer = nil
+  for _, xPlayer in pairs(ESX.GetPlayers()) do
+    local p = ESX.GetPlayerFromId(xPlayer)
+    if p and p.identifier == payload.identifier then
+      targetPlayer = p
+      break
+    end
+  end
+
+  if targetPlayer then
+    targetPlayer.setJob(Config.DefaultJob, 0)
+  else
+    MySQL.update('UPDATE users SET job = ?, job_grade = 0 WHERE identifier = ?', { Config.DefaultJob, payload.identifier })
+  end
+
+  sendWebhook('Employé licencié', {
+    { name = 'Patron', value = playerLabel(playerId), inline = true },
+    { name = 'Employé', value = payload.identifier, inline = true }
+  })
+  cb({ ok = true })
+end)
+
+-- Promote employee by identifier
+ESX.RegisterServerCallback('mdt:server:promoteEmployeeByIdentifier', function(source, cb, payload)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  if not payload or not payload.identifier or payload.newGrade == nil then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local bossJob = getPlayerJob(playerId)
+  if not bossJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  local newGrade = tonumber(payload.newGrade) or 0
+
+  local targetPlayer = nil
+  for _, xPlayer in pairs(ESX.GetPlayers()) do
+    local p = ESX.GetPlayerFromId(xPlayer)
+    if p and p.identifier == payload.identifier then
+      targetPlayer = p
+      break
+    end
+  end
+
+  if targetPlayer then
+    targetPlayer.setJob(bossJob.name, newGrade)
+  else
+    MySQL.update('UPDATE users SET job_grade = ? WHERE identifier = ? AND job = ?', { newGrade, payload.identifier, bossJob.name })
+  end
+
+  sendWebhook('Employé promu', {
+    { name = 'Patron', value = playerLabel(playerId), inline = true },
+    { name = 'Employé', value = payload.identifier, inline = true },
+    { name = 'Nouveau grade', value = tostring(newGrade), inline = true }
+  })
+  cb({ ok = true })
+end)
+
+-- ============================================
 -- CITIZEN INVOICE SYSTEM
 -- ============================================
 

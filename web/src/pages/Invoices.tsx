@@ -246,9 +246,9 @@ const Invoices = () => {
             </div>
             <div className="flex gap-2">
               {([
-                { id: 'citoyen', label: 'Facture client' },
+                { id: 'citoyen', label: 'Facture de vente' },
                 { id: 'entreprise', label: 'Facture entreprise' },
-                { id: 'paiement_citoyen', label: 'Paiement citoyen' }
+                { id: 'paiement_citoyen', label: "Facture d'achat" }
               ] as const).map((m) => (
                 <button
                   key={m.id}
@@ -266,9 +266,9 @@ const Invoices = () => {
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
-            {/* Player selection */}
+            {/* Client selection */}
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/50">Selection joueur</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/50">Client</p>
 
               {targetPlayer ? (
                 <div className="mt-3 flex items-center justify-between rounded-full border border-accent-500/50 bg-accent-500/10 px-4 py-2">
@@ -288,15 +288,15 @@ const Invoices = () => {
                   <div className="mt-3 flex items-center justify-between rounded-full border border-white/10 bg-base-900 px-4 py-2">
                     <span className="text-white/70">
                       {nearbyPlayers.length > 0
-                        ? `${nearbyPlayers.length} joueur(s) proche(s)`
-                        : 'Joueur le plus proche'}
+                        ? `${nearbyPlayers.length} personne(s) a proximite`
+                        : 'Rechercher un client'}
                     </span>
                     <button
                       onClick={handleScanNearby}
                       disabled={isScanning}
                       className="rounded-full bg-accent-600 px-3 py-1 text-xs text-base-950"
                     >
-                      {isScanning ? 'Scan...' : 'Scanner'}
+                      {isScanning ? 'Recherche...' : 'Proximite'}
                     </button>
                   </div>
 
@@ -308,7 +308,7 @@ const Invoices = () => {
                           onClick={() => setTargetPlayer(p)}
                           className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-sm hover:bg-white/10"
                         >
-                          {p.name} (ID: {p.id})
+                          {p.name}
                         </button>
                       ))}
                     </div>
@@ -319,13 +319,13 @@ const Invoices = () => {
                       value={targetIdInput}
                       onChange={(e) => setTargetIdInput(e.target.value)}
                       className="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 placeholder:text-white/30"
-                      placeholder="Ou ID joueur"
+                      placeholder="N° identifiant client"
                     />
                     <button
                       onClick={handleValidateId}
                       className="rounded-full border border-white/10 px-4 py-2 text-xs hover:bg-white/5"
                     >
-                      OK
+                      Valider
                     </button>
                   </div>
                 </>

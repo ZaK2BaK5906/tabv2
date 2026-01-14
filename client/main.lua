@@ -207,6 +207,72 @@ RegisterNetEvent('mdt:client:dataUpdated', function(payload)
 end)
 
 -- ============================================
+-- PRODUCTS SYSTEM
+-- ============================================
+
+RegisterNUICallback('mdt:getProducts', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getProducts', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:saveProduct', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:saveProduct', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:deleteProduct', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:deleteProduct', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+-- ============================================
+-- PLAYER LOOKUP SYSTEM
+-- ============================================
+
+RegisterNUICallback('mdt:getNearbyPlayers', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getNearbyPlayers', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:getPlayerById', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:getPlayerById', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+-- ============================================
+-- EMPLOYEE MANAGEMENT
+-- ============================================
+
+RegisterNUICallback('mdt:hireEmployeeById', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:hireEmployeeById', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:fireEmployeeByIdentifier', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:fireEmployeeByIdentifier', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:promoteEmployeeByIdentifier', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:promoteEmployeeByIdentifier', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:payEmployeeCommission', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:payEmployeeCommission', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+-- ============================================
 -- CITIZEN INVOICE SYSTEM
 -- ============================================
 
