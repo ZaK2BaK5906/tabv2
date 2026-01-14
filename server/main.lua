@@ -438,8 +438,8 @@ ESX.RegisterServerCallback('mdt:server:getEmployeeStats', function(source, cb)
         stats.commission_due
       FROM users
       LEFT JOIN mdt_employee_stats stats
-        ON stats.employee_identifier = users.identifier
-        AND stats.job_name = users.job
+        ON stats.employee_identifier COLLATE utf8mb4_general_ci = users.identifier COLLATE utf8mb4_general_ci
+        AND stats.job_name COLLATE utf8mb4_general_ci = users.job COLLATE utf8mb4_general_ci
       WHERE users.job = ?
     ]],
     { playerJob.name },

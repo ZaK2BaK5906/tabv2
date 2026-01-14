@@ -45,8 +45,8 @@ Config.InvoiceModes = {
   { id = 'citoyen', label = 'Facture client' },
   { id = 'entreprise', label = 'Facture entreprise' },
   {
-    id = 'paiement_joueur',
-    label = 'Paiement joueur',
+    id = 'paiement_citoyen',
+    label = 'Paiement citoyen',
     jobs = { 'auto_occaz', 'pawnshop' }
   }
 }
