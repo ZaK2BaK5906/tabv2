@@ -230,7 +230,7 @@ local function playerLabel(playerId)
   return string.format('%s (%s)', name, identifier)
 end
 
-local function giveInvoiceItem(playerId, payload)
+local function giveInvoiceItem(playerId, payload, isDuplicate)
   if not exports.ox_inventory then
     return
   end
@@ -238,7 +238,7 @@ local function giveInvoiceItem(playerId, payload)
   local job = getPlayerJob(playerId)
   local metadata = {
     invoice_id = payload.invoiceId or ('INV-' .. os.time()),
-    mode = payload.mode or 'citoyen',
+    mode = payload.mode or 'vente',
     product = payload.product or 'Prestation',
     amount = payload.amount or 0,
     tax_rate = payload.taxRate or Config.Taxes.defaultRate,
@@ -246,10 +246,29 @@ local function giveInvoiceItem(playerId, payload)
     total = payload.total or 0,
     issuer = payload.issuer or GetPlayerName(playerId),
     job = job and job.name or 'unknown',
-    created_at = os.date('%Y-%m-%d %H:%M:%S')
+    created_at = os.date('%Y-%m-%d %H:%M:%S'),
+    duplicate = isDuplicate and true or false,
+    label = isDuplicate and 'DUPLICATA' or 'ORIGINAL'
   }
 
   exports.ox_inventory:AddItem(playerId, Config.InvoiceItem, 1, metadata)
+end
+
+-- Give receipt to both seller and buyer
+local function giveReceiptsToBoth(sellerId, payload)
+  -- Give original to seller
+  giveInvoiceItem(sellerId, payload, false)
+
+  -- Find buyer by identifier and give duplicate
+  if payload.targetIdentifier then
+    for _, xPlayer in pairs(ESX.GetPlayers()) do
+      local p = ESX.GetPlayerFromId(xPlayer)
+      if p and p.identifier == payload.targetIdentifier then
+        giveInvoiceItem(xPlayer, payload, true)
+        break
+      end
+    end
+  end
 end
 
 RegisterNetEvent('mdt:server:ready', function()
@@ -731,7 +750,7 @@ ESX.RegisterServerCallback('mdt:server:createInvoice', function(source, cb, payl
       issuerName,
       payload.targetIdentifier,
       payload.targetName,
-      payload.mode or 'citoyen',
+      payload.mode or 'vente',
       payload.product or 'Prestation',
       amount,
       taxRate,
@@ -742,13 +761,14 @@ ESX.RegisterServerCallback('mdt:server:createInvoice', function(source, cb, payl
     },
     function()
       if payload.giveItem then
-        giveInvoiceItem(source, payload)
+        -- Give receipt to seller (original) and buyer (duplicate)
+        giveReceiptsToBoth(source, payload)
       end
       refreshClients('invoices')
       sendWebhook('Facture créée', {
         { name = 'Émetteur', value = playerLabel(source), inline = true },
         { name = 'Entreprise', value = playerJob.name, inline = true },
-        { name = 'Mode', value = payload.mode or 'citoyen', inline = true },
+        { name = 'Mode', value = payload.mode or 'vente', inline = true },
         { name = 'Montant', value = tostring(total), inline = true },
         { name = 'Facture', value = invoiceId, inline = true }
       })
@@ -847,7 +867,7 @@ RegisterNetEvent('mdt:server:createInvoiceItem', function(payload)
     return
   end
 
-  giveInvoiceItem(playerId, payload)
+  giveInvoiceItem(playerId, payload, false)
 end)
 
 registerModule('employees', {

@@ -49,7 +49,7 @@ const formatDate = (dateStr: string): string => {
   });
 };
 
-type InvoiceMode = 'citoyen' | 'entreprise' | 'paiement_citoyen';
+type InvoiceMode = 'vente' | 'achat' | 'entreprise';
 
 const Invoices = () => {
   const { player } = usePlayerStore();
@@ -59,7 +59,7 @@ const Invoices = () => {
   const [search, setSearch] = useState('');
 
   // Invoice creation state
-  const [mode, setMode] = useState<InvoiceMode>('citoyen');
+  const [mode, setMode] = useState<InvoiceMode>('vente');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [customLabel, setCustomLabel] = useState('');
@@ -184,7 +184,7 @@ const Invoices = () => {
         targetIdentifier: targetPlayer?.identifier,
         targetName: targetPlayer?.name,
         taxFreeReason: taxFree ? taxFreeReason : null,
-        giveItem: mode === 'citoyen'
+        giveItem: true
       });
 
       if (response.ok) {
@@ -246,9 +246,9 @@ const Invoices = () => {
             </div>
             <div className="flex gap-2">
               {([
-                { id: 'citoyen', label: 'Facture de vente' },
-                { id: 'entreprise', label: 'Facture entreprise' },
-                { id: 'paiement_citoyen', label: "Facture d'achat" }
+                { id: 'vente', label: 'Facture de vente' },
+                { id: 'achat', label: "Facture d'achat" },
+                { id: 'entreprise', label: 'Facture entreprise' }
               ] as const).map((m) => (
                 <button
                   key={m.id}
