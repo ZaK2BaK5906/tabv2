@@ -20,15 +20,17 @@ body {
   padding: 0;
   background: transparent !important;
   background-color: transparent !important;
+  background-image: none !important;
 }
 
 body {
   @apply font-body text-white;
   background: transparent !important;
   background-color: transparent !important;
+  background-image: none !important;
 }
 
-/* CRITICAL: Hide #root by default */
+/* CRITICAL: Hide #root by default - NO background at all */
 #root {
   height: 100%;
   width: 100%;
@@ -37,6 +39,8 @@ body {
   opacity: 0 !important;
   pointer-events: none !important;
   background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
 }
 
 /* Only show when mdt-open class is on body */
@@ -45,27 +49,49 @@ body.mdt-open #root {
   visibility: visible !important;
   opacity: 1 !important;
   pointer-events: auto !important;
-}
-
-.nui-root {
-  @apply flex h-screen w-screen items-center justify-center;
   background: transparent !important;
 }
 
+/* Container - NO background, position tablet to the right */
+.nui-root {
+  @apply flex h-screen w-screen items-center;
+  justify-content: flex-end;
+  padding-right: 2vw;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* Tablet frame - floating to the right with perspective */
 .tablet-frame {
-  @apply flex h-[70vh] w-[72vw] overflow-hidden rounded-[2.5rem] border border-white/10 text-white shadow-soft;
-  background: rgba(10, 14, 20, 0.95);
-  transform: perspective(1600px) rotateX(6deg) rotateY(-10deg);
+  @apply flex overflow-hidden rounded-[2.5rem] border border-white/10 text-white;
+  width: 55vw;
+  height: 75vh;
+  background: rgba(10, 14, 20, 0.92);
+  transform: perspective(1800px) rotateY(-12deg) rotateX(2deg) translateX(0);
+  transform-origin: right center;
   box-shadow:
-    0 24px 80px rgba(5, 8, 15, 0.65),
-    0 0 0 1px rgba(255, 255, 255, 0.03);
+    -30px 30px 80px rgba(0, 0, 0, 0.5),
+    -10px 10px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: tabletFloat 4s ease-in-out infinite;
+}
+
+@keyframes tabletFloat {
+  0%, 100% {
+    transform: perspective(1800px) rotateY(-12deg) rotateX(2deg) translateY(0);
+  }
+  50% {
+    transform: perspective(1800px) rotateY(-12deg) rotateX(2deg) translateY(-8px);
+  }
 }
 
 @media (max-width: 1280px) {
   .tablet-frame {
-    width: 86vw;
-    height: 78vh;
-    transform: perspective(1400px) rotateX(4deg) rotateY(-8deg);
+    width: 65vw;
+    height: 72vh;
+    transform: perspective(1600px) rotateY(-10deg) rotateX(2deg);
   }
 }
 

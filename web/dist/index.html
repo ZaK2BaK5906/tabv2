@@ -10,10 +10,30 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="./assets/index-DXOFWxI4.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CulweWRy.css">
+    <style>
+      /* Critical: Ensure no background and hidden by default */
+      html, body {
+        background: transparent !important;
+        background-color: transparent !important;
+        margin: 0;
+        padding: 0;
+      }
+      #root {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        background: transparent !important;
+      }
+      body.mdt-open #root {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-BuonNZNo.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-avFS8jBh.css">
   </head>
-  <body>
+  <body style="background: transparent !important;">
     <div id="root"></div>
   </body>
 </html>
