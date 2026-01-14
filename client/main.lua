@@ -2,7 +2,15 @@ local resourceName = GetCurrentResourceName()
 local ESX = exports['es_extended'] and exports['es_extended']:getSharedObject() or nil
 local isTabletOpen = false
 
+-- Debug logging
+local function log(msg)
+  print('^3[MDT]^0 ' .. tostring(msg))
+end
+
+log('Resource starting: ' .. resourceName)
+
 CreateThread(function()
+  log('Waiting for ESX...')
   while not ESX do
     TriggerEvent('esx:getSharedObject', function(obj)
       ESX = obj
@@ -12,9 +20,11 @@ CreateThread(function()
     end
     Wait(500)
   end
+  log('ESX loaded successfully!')
 end)
 
 local function setNuiFocus(state)
+  log('setNuiFocus: ' .. tostring(state))
   SetNuiFocus(state, state)
   if not state then
     SetNuiFocusKeepInput(false)
@@ -22,17 +32,21 @@ local function setNuiFocus(state)
 end
 
 local function closeTablet()
+  log('closeTablet called, isTabletOpen=' .. tostring(isTabletOpen))
   if not isTabletOpen then return end
   isTabletOpen = false
   setNuiFocus(false)
   SendNUIMessage({ type = 'mdt:close' })
+  log('Tablet closed')
 end
 
 local function openTablet(route)
+  log('openTablet called, route=' .. tostring(route) .. ', isTabletOpen=' .. tostring(isTabletOpen))
   if isTabletOpen then return end
   isTabletOpen = true
   setNuiFocus(true)
   SendNUIMessage({ type = 'mdt:open', route = route or '/' })
+  log('Tablet opened with route: ' .. tostring(route))
 end
 
 -- Ensure NUI is closed on resource start/stop
@@ -62,21 +76,25 @@ AddEventHandler('playerSpawned', function()
 end)
 
 RegisterCommand(Config.Commands.tablet, function()
+  log('Command /' .. Config.Commands.tablet .. ' executed')
   if isTabletOpen then
     closeTablet()
   else
     openTablet('/')
   end
 end, false)
+log('Registered command: /' .. Config.Commands.tablet)
 
 -- /facture opens the citizen invoice payment menu (my-invoices)
 RegisterCommand(Config.Commands.facture, function()
+  log('Command /' .. Config.Commands.facture .. ' executed')
   if isTabletOpen then
     closeTablet()
   else
     openTablet('/my-invoices')
   end
 end, false)
+log('Registered command: /' .. Config.Commands.facture)
 
 RegisterKeyMapping(Config.Commands.tablet, 'Ouvrir/Fermer la tablette MDT', 'keyboard', Config.Keybind)
 
@@ -84,16 +102,20 @@ RegisterKeyMapping(Config.Commands.tablet, 'Ouvrir/Fermer la tablette MDT', 'key
 local targetPlayerForAttribution = nil
 
 RegisterNUICallback('mdt:close', function(_, cb)
+  log('NUI callback: mdt:close')
   closeTablet()
   cb({ ok = true })
 end)
 
 RegisterNUICallback('mdt:ready', function(_, cb)
+  log('NUI callback: mdt:ready - NUI is loaded!')
   cb({ ok = true, resource = resourceName })
 end)
 
 RegisterNUICallback('mdt:getPlayerData', function(_, cb)
+  log('NUI callback: mdt:getPlayerData')
   ESX.TriggerServerCallback('mdt:server:getPlayerData', function(response)
+    log('mdt:getPlayerData response: ' .. json.encode(response))
     cb(response)
   end)
 end)

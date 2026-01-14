@@ -23,5 +23,5 @@ server_scripts {
 
 files {
   'web/dist/index.html',
-  'web/dist/**/*'
+  'web/dist/assets/*'
 }
