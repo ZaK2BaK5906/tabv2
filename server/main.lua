@@ -48,7 +48,9 @@ local function isBoss(playerId)
   if not playerJob then
     return false
   end
-  return playerJob.gradeName == Config.BossGradeName
+  -- Flexible boss detection: check by name OR by grade level (3+ = boss/manager)
+  local gradeName = string.lower(playerJob.gradeName or '')
+  return gradeName == 'boss' or gradeName == 'patron' or gradeName == 'directeur' or gradeName == 'chef' or playerJob.grade >= 3
 end
 
 local function ensureTables()
@@ -405,8 +407,10 @@ ESX.RegisterServerCallback('mdt:server:getPlayerData', function(source, cb)
       lastname = rows[1].lastname or ''
     end
 
-    -- Check if player is boss
-    local isBoss = job.grade_name == Config.BossGradeName
+    -- Check if player is boss (flexible detection)
+    -- Check by grade name OR by grade level (3+ usually means boss/manager)
+    local gradeName = string.lower(job.grade_name or '')
+    local isBoss = gradeName == 'boss' or gradeName == 'patron' or gradeName == 'directeur' or gradeName == 'chef' or job.grade >= 3
 
     cb({
       ok = true,

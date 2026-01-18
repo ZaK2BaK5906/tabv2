@@ -50,6 +50,10 @@ const Employees = () => {
   // Promote modal state
   const [newGrade, setNewGrade] = useState('');
 
+  // Commission modal state
+  const [showCommissionModal, setShowCommissionModal] = useState(false);
+  const [newCommissionRate, setNewCommissionRate] = useState('');
+
   // Action states
   const [isActioning, setIsActioning] = useState(false);
 
@@ -170,6 +174,26 @@ const Employees = () => {
     try {
       await fetchNui('mdt:resetEmployeeStats', { identifier });
       loadEmployees();
+    } catch {
+      // ignore
+    }
+    setIsActioning(false);
+  };
+
+  const handleUpdateCommission = async () => {
+    if (!selectedEmployee || !newCommissionRate) return;
+    setIsActioning(true);
+    try {
+      const response = await fetchNui<{ ok: boolean }>('mdt:updateCommissionRate', {
+        identifier: selectedEmployee.identifier,
+        rate: parseFloat(newCommissionRate) / 100
+      });
+      if (response.ok) {
+        setShowCommissionModal(false);
+        setSelectedEmployee(null);
+        setNewCommissionRate('');
+        loadEmployees();
+      }
     } catch {
       // ignore
     }
@@ -320,6 +344,17 @@ const Employees = () => {
                           className="rounded-full border border-white/10 px-3 py-1 text-xs text-red-400 disabled:opacity-50"
                         >
                           Licencier
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedEmployee(employee);
+                            setNewCommissionRate(String(Math.round((employee.commission_rate ?? 0.05) * 100)));
+                            setShowCommissionModal(true);
+                          }}
+                          disabled={isActioning}
+                          className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/60 disabled:opacity-50"
+                        >
+                          Commission
                         </button>
                         <button
                           onClick={() => handleReset(employee.identifier)}
@@ -525,6 +560,51 @@ const Employees = () => {
                 className="rounded-full bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-50"
               >
                 {isActioning ? 'Licenciement...' : 'Confirmer le licenciement'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Commission Modal */}
+      {showCommissionModal && selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="glass-panel w-full max-w-md rounded-2xl p-6">
+            <h3 className="font-display text-lg">Modifier la commission</h3>
+            <p className="text-sm text-white/50">
+              {[selectedEmployee.firstname, selectedEmployee.lastname].filter(Boolean).join(' ') || selectedEmployee.identifier}
+            </p>
+
+            <div className="mt-4">
+              <label className="text-xs text-white/50">Taux de commission (%)</label>
+              <input
+                value={newCommissionRate}
+                onChange={(e) => setNewCommissionRate(e.target.value.replace(/[^\d.]/g, ''))}
+                className="mt-1 w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70"
+                placeholder="Ex: 5, 10, 15..."
+              />
+              <p className="mt-2 text-xs text-white/40">
+                Commission actuelle: {formatPercent(selectedEmployee.commission_rate)}
+              </p>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowCommissionModal(false);
+                  setSelectedEmployee(null);
+                  setNewCommissionRate('');
+                }}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/70"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleUpdateCommission}
+                disabled={!newCommissionRate || isActioning}
+                className="rounded-full bg-accent-600 px-4 py-2 text-sm text-base-950 disabled:opacity-50"
+              >
+                {isActioning ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </div>
           </div>
