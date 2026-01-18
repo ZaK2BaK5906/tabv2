@@ -250,29 +250,30 @@ WHERE NOT EXISTS (
   SELECT 1 FROM jobs WHERE name = 'doj'
 );
 
-INSERT INTO job_grades (job_name, grade, name, label, salary)
-SELECT 'doj', 0, 'agent', 'Agent DOJ', 500
+-- Note: Adapte les colonnes skin_male/skin_female selon ta version ESX
+INSERT INTO job_grades (job_name, grade, name, label, salary, skin_male, skin_female)
+SELECT 'doj', 0, 'agent', 'Agent DOJ', 500, '{}', '{}'
 FROM DUAL
 WHERE NOT EXISTS (
   SELECT 1 FROM job_grades WHERE job_name = 'doj' AND grade = 0
 );
 
-INSERT INTO job_grades (job_name, grade, name, label, salary)
-SELECT 'doj', 1, 'senior', 'Agent Senior', 750
+INSERT INTO job_grades (job_name, grade, name, label, salary, skin_male, skin_female)
+SELECT 'doj', 1, 'senior', 'Agent Senior', 750, '{}', '{}'
 FROM DUAL
 WHERE NOT EXISTS (
   SELECT 1 FROM job_grades WHERE job_name = 'doj' AND grade = 1
 );
 
-INSERT INTO job_grades (job_name, grade, name, label, salary)
-SELECT 'doj', 2, 'supervisor', 'Superviseur', 1000
+INSERT INTO job_grades (job_name, grade, name, label, salary, skin_male, skin_female)
+SELECT 'doj', 2, 'supervisor', 'Superviseur', 1000, '{}', '{}'
 FROM DUAL
 WHERE NOT EXISTS (
   SELECT 1 FROM job_grades WHERE job_name = 'doj' AND grade = 2
 );
 
-INSERT INTO job_grades (job_name, grade, name, label, salary)
-SELECT 'doj', 3, 'boss', 'Directeur DOJ', 1500
+INSERT INTO job_grades (job_name, grade, name, label, salary, skin_male, skin_female)
+SELECT 'doj', 3, 'boss', 'Directeur DOJ', 1500, '{}', '{}'
 FROM DUAL
 WHERE NOT EXISTS (
   SELECT 1 FROM job_grades WHERE job_name = 'doj' AND grade = 3
