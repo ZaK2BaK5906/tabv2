@@ -178,6 +178,78 @@ local function ensureTables()
       KEY idx_mdt_doj_status (status)
     )
   ]])
+
+  -- Code Penal: Articles de loi
+  MySQL.query([[
+    CREATE TABLE IF NOT EXISTS mdt_penal_code (
+      id INT NOT NULL AUTO_INCREMENT,
+      article_number VARCHAR(20) NOT NULL,
+      category VARCHAR(60) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT NOT NULL,
+      min_fine INT NOT NULL DEFAULT 0,
+      max_fine INT NOT NULL DEFAULT 0,
+      min_jail INT NOT NULL DEFAULT 0,
+      max_jail INT NOT NULL DEFAULT 0,
+      points INT NOT NULL DEFAULT 0,
+      status VARCHAR(40) NOT NULL DEFAULT 'draft',
+      vote_status VARCHAR(40) NOT NULL DEFAULT 'pending',
+      votes_for INT NOT NULL DEFAULT 0,
+      votes_against INT NOT NULL DEFAULT 0,
+      vote_deadline TIMESTAMP NULL DEFAULT NULL,
+      created_by VARCHAR(60) DEFAULT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      validated_at TIMESTAMP NULL DEFAULT NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_article_number (article_number),
+      KEY idx_penal_category (category),
+      KEY idx_penal_status (status),
+      KEY idx_penal_vote_status (vote_status)
+    )
+  ]])
+
+  -- Votes des citoyens sur les lois
+  MySQL.query([[
+    CREATE TABLE IF NOT EXISTS mdt_penal_votes (
+      id INT NOT NULL AUTO_INCREMENT,
+      article_id INT NOT NULL,
+      citizen_identifier VARCHAR(60) NOT NULL,
+      citizen_name VARCHAR(120) NOT NULL,
+      vote ENUM('for', 'against') NOT NULL,
+      comment TEXT DEFAULT NULL,
+      voted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_citizen_vote (article_id, citizen_identifier),
+      KEY idx_vote_article (article_id)
+    )
+  ]])
+
+  -- Categories du code penal
+  MySQL.query([[
+    CREATE TABLE IF NOT EXISTS mdt_penal_categories (
+      id INT NOT NULL AUTO_INCREMENT,
+      name VARCHAR(60) NOT NULL,
+      label VARCHAR(120) NOT NULL,
+      description VARCHAR(255) DEFAULT NULL,
+      display_order INT NOT NULL DEFAULT 0,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_category_name (name)
+    )
+  ]])
+
+  -- Insert default categories if empty
+  MySQL.query('SELECT COUNT(*) as count FROM mdt_penal_categories', {}, function(rows)
+    if rows and rows[1] and rows[1].count == 0 then
+      MySQL.query([[
+        INSERT INTO mdt_penal_categories (name, label, description, display_order) VALUES
+        ('infractions', 'Infractions', 'Infractions mineures et contraventions', 1),
+        ('delits', 'Delits', 'Delits et crimes mineurs', 2),
+        ('crimes', 'Crimes', 'Crimes graves', 3),
+        ('circulation', 'Code de la route', 'Infractions routieres', 4),
+        ('economique', 'Crimes economiques', 'Fraude, blanchiment, evasion fiscale', 5)
+      ]])
+    end
+  end)
 end
 
 local function loadTaxSettings()
@@ -2245,5 +2317,392 @@ ESX.RegisterServerCallback('mdt:server:getCompanyDojHistory', function(source, c
     LIMIT 100
   ]], { payload.job_name }, function(rows)
     cb({ ok = true, history = rows or {} })
+  end)
+end)
+
+-- ============================================
+-- PENAL CODE SYSTEM (Code Penal)
+-- ============================================
+
+-- Get all penal code categories
+ESX.RegisterServerCallback('mdt:server:getPenalCategories', function(source, cb)
+  MySQL.query('SELECT * FROM mdt_penal_categories ORDER BY display_order', {}, function(rows)
+    cb({ ok = true, categories = rows or {} })
+  end)
+end)
+
+-- Get all penal code articles (for DOJ - all statuses)
+ESX.RegisterServerCallback('mdt:server:getPenalArticles', function(source, cb, payload)
+  local isDojAgent = isDoj(source)
+  local category = payload and payload.category or nil
+  local status = payload and payload.status or nil
+
+  local query = 'SELECT * FROM mdt_penal_code WHERE 1=1'
+  local params = {}
+
+  -- Citizens only see validated articles
+  if not isDojAgent then
+    query = query .. ' AND status = "active"'
+  end
+
+  if category then
+    query = query .. ' AND category = ?'
+    table.insert(params, category)
+  end
+
+  if status and isDojAgent then
+    query = query .. ' AND vote_status = ?'
+    table.insert(params, status)
+  end
+
+  query = query .. ' ORDER BY category, article_number'
+
+  MySQL.query(query, params, function(rows)
+    cb({ ok = true, articles = rows or {}, isDoj = isDojAgent })
+  end)
+end)
+
+-- Get single article with vote details
+ESX.RegisterServerCallback('mdt:server:getPenalArticle', function(source, cb, payload)
+  if not payload or not payload.id then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  MySQL.query('SELECT * FROM mdt_penal_code WHERE id = ?', { payload.id }, function(rows)
+    if not rows or #rows == 0 then
+      cb({ ok = false, reason = 'not_found' })
+      return
+    end
+
+    local article = rows[1]
+
+    -- Get votes for this article
+    MySQL.query('SELECT * FROM mdt_penal_votes WHERE article_id = ? ORDER BY voted_at DESC', { payload.id }, function(voteRows)
+      article.votes = voteRows or {}
+
+      -- Check if current player has voted
+      local xPlayer = ESX.GetPlayerFromId(source)
+      if xPlayer then
+        MySQL.query('SELECT vote FROM mdt_penal_votes WHERE article_id = ? AND citizen_identifier = ?', { payload.id, xPlayer.identifier }, function(myVote)
+          article.myVote = myVote and myVote[1] and myVote[1].vote or nil
+          cb({ ok = true, article = article })
+        end)
+      else
+        cb({ ok = true, article = article })
+      end
+    end)
+  end)
+end)
+
+-- Create new penal article (DOJ only)
+ESX.RegisterServerCallback('mdt:server:createPenalArticle', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.article_number or not payload.title or not payload.description or not payload.category then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local playerJob = getPlayerJob(source)
+
+  -- Calculate vote deadline (default 7 days)
+  local voteDays = payload.vote_days or 7
+  local deadline = os.date('%Y-%m-%d %H:%M:%S', os.time() + (voteDays * 24 * 60 * 60))
+
+  MySQL.insert([[
+    INSERT INTO mdt_penal_code
+      (article_number, category, title, description, min_fine, max_fine, min_jail, max_jail, points, status, vote_status, vote_deadline, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'voting', ?, ?)
+  ]], {
+    payload.article_number,
+    payload.category,
+    payload.title,
+    payload.description,
+    payload.min_fine or 0,
+    payload.max_fine or 0,
+    payload.min_jail or 0,
+    payload.max_jail or 0,
+    payload.points or 0,
+    deadline,
+    playerJob and playerJob.identifier or 'unknown'
+  }, function(insertId)
+    refreshClients('penal')
+    sendWebhook('Article Code Penal cree', {
+      { name = 'Agent DOJ', value = playerLabel(source), inline = true },
+      { name = 'Article', value = payload.article_number, inline = true },
+      { name = 'Titre', value = payload.title, inline = true },
+      { name = 'Delai vote', value = voteDays .. ' jours', inline = true }
+    })
+    cb({ ok = true, id = insertId })
+  end)
+end)
+
+-- Update penal article (DOJ only)
+ESX.RegisterServerCallback('mdt:server:updatePenalArticle', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.id then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  MySQL.update([[
+    UPDATE mdt_penal_code SET
+      article_number = ?,
+      category = ?,
+      title = ?,
+      description = ?,
+      min_fine = ?,
+      max_fine = ?,
+      min_jail = ?,
+      max_jail = ?,
+      points = ?
+    WHERE id = ?
+  ]], {
+    payload.article_number,
+    payload.category,
+    payload.title,
+    payload.description,
+    payload.min_fine or 0,
+    payload.max_fine or 0,
+    payload.min_jail or 0,
+    payload.max_jail or 0,
+    payload.points or 0,
+    payload.id
+  }, function()
+    refreshClients('penal')
+    cb({ ok = true })
+  end)
+end)
+
+-- Delete penal article (DOJ only, only if draft)
+ESX.RegisterServerCallback('mdt:server:deletePenalArticle', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.id then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  -- Only allow deletion of draft articles
+  MySQL.query('SELECT status FROM mdt_penal_code WHERE id = ?', { payload.id }, function(rows)
+    if not rows or #rows == 0 then
+      cb({ ok = false, reason = 'not_found' })
+      return
+    end
+
+    if rows[1].status == 'active' then
+      cb({ ok = false, reason = 'cannot_delete_active' })
+      return
+    end
+
+    -- Delete votes first
+    MySQL.update('DELETE FROM mdt_penal_votes WHERE article_id = ?', { payload.id })
+
+    -- Delete article
+    MySQL.update('DELETE FROM mdt_penal_code WHERE id = ?', { payload.id }, function()
+      refreshClients('penal')
+      cb({ ok = true })
+    end)
+  end)
+end)
+
+-- Vote on a penal article (any citizen)
+ESX.RegisterServerCallback('mdt:server:voteOnArticle', function(source, cb, payload)
+  local xPlayer = ESX.GetPlayerFromId(source)
+  if not xPlayer then
+    cb({ ok = false, reason = 'player_not_found' })
+    return
+  end
+
+  if not payload or not payload.article_id or not payload.vote then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  if payload.vote ~= 'for' and payload.vote ~= 'against' then
+    cb({ ok = false, reason = 'invalid_vote' })
+    return
+  end
+
+  -- Check if article exists and is open for voting
+  MySQL.query('SELECT * FROM mdt_penal_code WHERE id = ? AND vote_status = "voting"', { payload.article_id }, function(rows)
+    if not rows or #rows == 0 then
+      cb({ ok = false, reason = 'article_not_votable' })
+      return
+    end
+
+    local article = rows[1]
+
+    -- Check deadline
+    if article.vote_deadline then
+      local deadline = article.vote_deadline
+      local now = os.date('%Y-%m-%d %H:%M:%S')
+      if now > deadline then
+        cb({ ok = false, reason = 'vote_expired' })
+        return
+      end
+    end
+
+    -- Get citizen name
+    MySQL.query('SELECT firstname, lastname FROM users WHERE identifier = ?', { xPlayer.identifier }, function(userRows)
+      local citizenName = 'Citoyen'
+      if userRows and userRows[1] then
+        citizenName = string.format('%s %s', userRows[1].firstname or '', userRows[1].lastname or '')
+      end
+
+      -- Check if already voted
+      MySQL.query('SELECT id, vote FROM mdt_penal_votes WHERE article_id = ? AND citizen_identifier = ?', { payload.article_id, xPlayer.identifier }, function(voteRows)
+        if voteRows and #voteRows > 0 then
+          -- Update existing vote
+          local oldVote = voteRows[1].vote
+          MySQL.update('UPDATE mdt_penal_votes SET vote = ?, comment = ?, voted_at = NOW() WHERE id = ?', {
+            payload.vote,
+            payload.comment or nil,
+            voteRows[1].id
+          }, function()
+            -- Update vote counts
+            if oldVote ~= payload.vote then
+              if payload.vote == 'for' then
+                MySQL.update('UPDATE mdt_penal_code SET votes_for = votes_for + 1, votes_against = votes_against - 1 WHERE id = ?', { payload.article_id })
+              else
+                MySQL.update('UPDATE mdt_penal_code SET votes_for = votes_for - 1, votes_against = votes_against + 1 WHERE id = ?', { payload.article_id })
+              end
+            end
+            refreshClients('penal')
+            cb({ ok = true, updated = true })
+          end)
+        else
+          -- Insert new vote
+          MySQL.insert('INSERT INTO mdt_penal_votes (article_id, citizen_identifier, citizen_name, vote, comment) VALUES (?, ?, ?, ?, ?)', {
+            payload.article_id,
+            xPlayer.identifier,
+            citizenName,
+            payload.vote,
+            payload.comment or nil
+          }, function()
+            -- Update vote counts
+            if payload.vote == 'for' then
+              MySQL.update('UPDATE mdt_penal_code SET votes_for = votes_for + 1 WHERE id = ?', { payload.article_id })
+            else
+              MySQL.update('UPDATE mdt_penal_code SET votes_against = votes_against + 1 WHERE id = ?', { payload.article_id })
+            end
+            refreshClients('penal')
+            cb({ ok = true })
+          end)
+        end
+      end)
+    end)
+  end)
+end)
+
+-- Validate article (DOJ only - approve after voting)
+ESX.RegisterServerCallback('mdt:server:validatePenalArticle', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.id then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  MySQL.update([[
+    UPDATE mdt_penal_code SET
+      status = 'active',
+      vote_status = 'approved',
+      validated_at = NOW()
+    WHERE id = ?
+  ]], { payload.id }, function()
+    refreshClients('penal')
+    sendWebhook('Article Code Penal valide', {
+      { name = 'Agent DOJ', value = playerLabel(source), inline = true },
+      { name = 'Article ID', value = tostring(payload.id), inline = true }
+    })
+    cb({ ok = true })
+  end)
+end)
+
+-- Reject article (DOJ only)
+ESX.RegisterServerCallback('mdt:server:rejectPenalArticle', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.id then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  MySQL.update([[
+    UPDATE mdt_penal_code SET
+      status = 'rejected',
+      vote_status = 'rejected'
+    WHERE id = ?
+  ]], { payload.id }, function()
+    refreshClients('penal')
+    cb({ ok = true })
+  end)
+end)
+
+-- Extend voting deadline (DOJ only)
+ESX.RegisterServerCallback('mdt:server:extendVoteDeadline', function(source, cb, payload)
+  if not isDoj(source) then
+    cb({ ok = false, reason = 'not_doj' })
+    return
+  end
+
+  if not payload or not payload.id or not payload.days then
+    cb({ ok = false, reason = 'invalid_payload' })
+    return
+  end
+
+  local extraDays = tonumber(payload.days) or 7
+  MySQL.update([[
+    UPDATE mdt_penal_code SET
+      vote_deadline = DATE_ADD(vote_deadline, INTERVAL ? DAY)
+    WHERE id = ?
+  ]], { extraDays, payload.id }, function()
+    refreshClients('penal')
+    cb({ ok = true })
+  end)
+end)
+
+-- Get voting stats for DOJ dashboard
+ESX.RegisterServerCallback('mdt:server:getPenalStats', function(source, cb)
+  local stats = {
+    totalArticles = 0,
+    activeArticles = 0,
+    votingArticles = 0,
+    totalVotes = 0
+  }
+
+  MySQL.query('SELECT COUNT(*) as total FROM mdt_penal_code', {}, function(rows)
+    stats.totalArticles = rows and rows[1] and rows[1].total or 0
+
+    MySQL.query('SELECT COUNT(*) as active FROM mdt_penal_code WHERE status = "active"', {}, function(rows2)
+      stats.activeArticles = rows2 and rows2[1] and rows2[1].active or 0
+
+      MySQL.query('SELECT COUNT(*) as voting FROM mdt_penal_code WHERE vote_status = "voting"', {}, function(rows3)
+        stats.votingArticles = rows3 and rows3[1] and rows3[1].voting or 0
+
+        MySQL.query('SELECT COUNT(*) as votes FROM mdt_penal_votes', {}, function(rows4)
+          stats.totalVotes = rows4 and rows4[1] and rows4[1].votes or 0
+          cb({ ok = true, stats = stats })
+        end)
+      end)
+    end)
   end)
 end)

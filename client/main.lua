@@ -452,3 +452,73 @@ RegisterNetEvent('mdt:client:openAssignVehicle', function(targetId)
   targetPlayerForAttribution = targetId
   openTablet('/dealership')
 end)
+
+-- ============================================
+-- PENAL CODE SYSTEM (Code Penal)
+-- ============================================
+
+RegisterNUICallback('mdt:getPenalCategories', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getPenalCategories', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:getPenalArticles', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:getPenalArticles', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:getPenalArticle', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:getPenalArticle', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:createPenalArticle', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:createPenalArticle', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:updatePenalArticle', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:updatePenalArticle', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:deletePenalArticle', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:deletePenalArticle', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:voteOnArticle', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:voteOnArticle', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:validatePenalArticle', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:validatePenalArticle', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:rejectPenalArticle', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:rejectPenalArticle', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:extendVoteDeadline', function(data, cb)
+  ESX.TriggerServerCallback('mdt:server:extendVoteDeadline', function(response)
+    cb(response)
+  end, data or {})
+end)
+
+RegisterNUICallback('mdt:getPenalStats', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getPenalStats', function(response)
+    cb(response)
+  end)
+end)
