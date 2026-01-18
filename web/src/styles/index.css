@@ -2,14 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
+/* ============================================
+   CRITICAL: FORCE TRANSPARENT BACKGROUND
+   This MUST come before everything else
+   ============================================ */
+
+/* Force transparency on EVERYTHING by default */
+*, *::before, *::after {
+  background-color: transparent !important;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* Only allow background on specific elements when MDT is open */
+body.mdt-open .tablet-frame,
+body.mdt-open .tablet-frame *,
+body.mdt-open .glass-panel,
+body.mdt-open aside,
+body.mdt-open .bg-base-900\/80,
+body.mdt-open .bg-surface-800,
+body.mdt-open .bg-surface-700,
+body.mdt-open .bg-white\/5,
+body.mdt-open [class*="bg-"] {
+  background-color: unset !important;
+  background: unset !important;
+}
+
+/* Re-apply backgrounds only when open */
+body.mdt-open .tablet-frame {
+  background: rgba(10, 14, 20, 0.92) !important;
+}
+
+body.mdt-open aside {
+  background: rgba(15, 20, 30, 0.8) !important;
+}
+
+body.mdt-open .glass-panel {
+  background: rgba(21, 29, 42, 0.75) !important;
+}
+
+:root {
+  color-scheme: dark;
 }
 
 html,
@@ -24,7 +55,8 @@ body {
 }
 
 body {
-  @apply font-body text-white;
+  font-family: "Inter", system-ui, sans-serif;
+  color: white;
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
@@ -54,7 +86,10 @@ body.mdt-open #root {
 
 /* Container - NO background, position tablet to the right */
 .nui-root {
-  @apply flex h-screen w-screen items-center;
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  align-items: center;
   justify-content: flex-end;
   padding-right: 2vw;
   background: transparent !important;
@@ -64,7 +99,11 @@ body.mdt-open #root {
 
 /* Tablet frame - floating to the right with perspective */
 .tablet-frame {
-  @apply flex overflow-hidden rounded-[2.5rem] border border-white/10 text-white;
+  display: flex;
+  overflow: hidden;
+  border-radius: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
   width: 55vw;
   height: 75vh;
   background: rgba(10, 14, 20, 0.92);
@@ -96,7 +135,9 @@ body.mdt-open #root {
 }
 
 .glass-panel {
-  @apply bg-surface-800 border border-white/5 shadow-card;
+  background: rgba(21, 29, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 12px 40px rgba(7, 10, 20, 0.35);
 }
 
 .glow-divider {
@@ -104,7 +145,15 @@ body.mdt-open #root {
 }
 
 .badge {
-  @apply inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-xs font-medium text-white/80;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .scrollbar-thin::-webkit-scrollbar {
