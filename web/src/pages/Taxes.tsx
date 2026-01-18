@@ -43,11 +43,19 @@ type ExportData = {
   partnerships: unknown[];
 };
 
-const currency = new Intl.NumberFormat('fr-FR', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 0
-});
+const formatMoney = (value: number): string => {
+  if (value >= 1000000) {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(0)}K`;
+  }
+  return `$${value}`;
+};
+
+const currency = {
+  format: (value: number) => formatMoney(value)
+};
 
 const Taxes = () => {
   const [stats, setStats] = useState<DojStats | null>(null);
@@ -58,7 +66,7 @@ const Taxes = () => {
 
   // Modal states
   const [showActionModal, setShowActionModal] = useState(false);
-  const [actionType, setActionType] = useState<'fine' | 'freeze' | 'audit' | 'payment' | 'export' | null>(null);
+  const [actionType, setActionType] = useState<'fine' | 'freeze' | 'payment' | 'export' | null>(null);
   const [selectedSociety, setSelectedSociety] = useState<Society | null>(null);
   const [actionAmount, setActionAmount] = useState('');
   const [actionReason, setActionReason] = useState('');
@@ -98,7 +106,7 @@ const Taxes = () => {
     return () => window.removeEventListener('message', handler);
   }, []);
 
-  const openActionModal = (society: Society, type: 'fine' | 'freeze' | 'audit' | 'payment' | 'export') => {
+  const openActionModal = (society: Society, type: 'fine' | 'freeze' | 'payment' | 'export') => {
     setSelectedSociety(society);
     setActionType(type);
     setActionAmount('');
@@ -137,12 +145,6 @@ const Taxes = () => {
           });
           break;
 
-        case 'audit':
-          response = await fetchNui('mdt:forceAudit', {
-            job_name: selectedSociety.job_name,
-            reason: actionReason || 'Audit demande par DOJ'
-          });
-          break;
 
         case 'payment':
           response = await fetchNui('mdt:forcePayment', {
@@ -214,7 +216,6 @@ const Taxes = () => {
   const actionLabels: Record<string, string> = {
     fine: 'Amende',
     freeze: 'Gel',
-    audit: 'Audit',
     force_payment: 'Paiement force',
     export: 'Export'
   };
@@ -349,14 +350,6 @@ const Taxes = () => {
                           Geler
                         </button>
                       )}
-                      <button
-                        onClick={() => openActionModal(society, 'audit')}
-                        disabled={isActioning}
-                        className="rounded-full border border-white/10 px-2 py-1 text-xs disabled:opacity-50"
-                        title="Audit"
-                      >
-                        Audit
-                      </button>
                       {society.taxes_pending > 0 && (
                         <button
                           onClick={() => openActionModal(society, 'payment')}
@@ -405,7 +398,6 @@ const Taxes = () => {
             <h3 className="font-display text-lg">
               {actionType === 'fine' && 'Amende'}
               {actionType === 'freeze' && 'Geler l\'entreprise'}
-              {actionType === 'audit' && 'Lancer un audit'}
               {actionType === 'payment' && 'Forcer le paiement'}
               {actionType === 'export' && 'Exporter les donnees'}
             </h3>
@@ -447,17 +439,6 @@ const Taxes = () => {
                 </div>
               )}
 
-              {actionType === 'audit' && (
-                <div>
-                  <label className="text-xs text-white/50">Raison de l'audit (optionnel)</label>
-                  <input
-                    value={actionReason}
-                    onChange={(e) => setActionReason(e.target.value)}
-                    className="mt-1 w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70"
-                    placeholder="Raison de l'audit..."
-                  />
-                </div>
-              )}
 
               {actionType === 'payment' && (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4">

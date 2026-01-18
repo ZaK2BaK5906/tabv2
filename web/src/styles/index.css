@@ -115,3 +115,17 @@ body.mdt-open #root {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 999px;
 }
+
+/* Prevent number overflow in stat panels */
+.glass-panel p,
+.glass-panel span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.glass-panel .font-display {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
