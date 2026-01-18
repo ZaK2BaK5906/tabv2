@@ -43,14 +43,40 @@ local function hasPermission(playerId, job, minGrade)
   return playerJob.grade >= minGrade
 end
 
+-- Sync version for quick checks (uses cached max grade or grade_name check)
 local function isBoss(playerId)
   local playerJob = getPlayerJob(playerId)
   if not playerJob then
     return false
   end
-  -- Flexible boss detection: check by name OR by grade level (3+ = boss/manager)
+  -- Check by grade name first
   local gradeName = string.lower(playerJob.gradeName or '')
-  return gradeName == 'boss' or gradeName == 'patron' or gradeName == 'directeur' or gradeName == 'chef' or playerJob.grade >= 3
+  if gradeName == 'boss' or gradeName == 'patron' or gradeName == 'directeur' or gradeName == 'chef' then
+    return true
+  end
+  return false
+end
+
+-- Async version that queries database for max grade (more accurate)
+local function isBossAsync(playerId, callback)
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    callback(false)
+    return
+  end
+
+  -- Query database for max grade of this job
+  MySQL.query('SELECT MAX(grade) as max_grade FROM job_grades WHERE job_name = ?', { playerJob.name }, function(rows)
+    if rows and rows[1] and rows[1].max_grade ~= nil then
+      local maxGrade = rows[1].max_grade
+      -- Player is boss if they have the maximum grade
+      callback(playerJob.grade >= maxGrade)
+    else
+      -- Fallback to grade_name check if no grades found
+      local gradeName = string.lower(playerJob.gradeName or '')
+      callback(gradeName == 'boss' or gradeName == 'patron' or gradeName == 'directeur' or gradeName == 'chef')
+    end
+  end)
 end
 
 local function ensureTables()
@@ -407,32 +433,41 @@ ESX.RegisterServerCallback('mdt:server:getPlayerData', function(source, cb)
       lastname = rows[1].lastname or ''
     end
 
-    -- Check if player is boss (flexible detection)
-    -- Check by grade name OR by grade level (3+ usually means boss/manager)
-    local gradeName = string.lower(job.grade_name or '')
-    local isBoss = gradeName == 'boss' or gradeName == 'patron' or gradeName == 'directeur' or gradeName == 'chef' or job.grade >= 3
+    -- Check if player is boss by querying max grade from database
+    MySQL.query('SELECT MAX(grade) as max_grade FROM job_grades WHERE job_name = ?', { job.name }, function(gradeRows)
+      local isBossResult = false
 
-    cb({
-      ok = true,
-      player = {
-        identifier = xPlayer.identifier,
-        firstname = firstname,
-        lastname = lastname,
-        fullname = string.format('%s %s', firstname, lastname),
-        job = {
-          name = job.name,
-          label = job.label,
-          grade = job.grade,
-          gradeName = job.grade_name,
-          gradeLabel = job.grade_label
-        },
-        money = {
-          cash = money or 0,
-          bank = bank and bank.money or 0
-        },
-        isBoss = isBoss
-      }
-    })
+      if gradeRows and gradeRows[1] and gradeRows[1].max_grade ~= nil then
+        -- Player is boss if they have the maximum grade for their job
+        isBossResult = job.grade >= gradeRows[1].max_grade
+      else
+        -- Fallback: check by grade name
+        local gradeName = string.lower(job.grade_name or '')
+        isBossResult = gradeName == 'boss' or gradeName == 'patron' or gradeName == 'directeur' or gradeName == 'chef'
+      end
+
+      cb({
+        ok = true,
+        player = {
+          identifier = xPlayer.identifier,
+          firstname = firstname,
+          lastname = lastname,
+          fullname = string.format('%s %s', firstname, lastname),
+          job = {
+            name = job.name,
+            label = job.label,
+            grade = job.grade,
+            gradeName = job.grade_name,
+            gradeLabel = job.grade_label
+          },
+          money = {
+            cash = money or 0,
+            bank = bank and bank.money or 0
+          },
+          isBoss = isBossResult
+        }
+      })
+    end)
   end)
 end)
 
