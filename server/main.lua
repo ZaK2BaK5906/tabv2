@@ -181,13 +181,16 @@ local function ensureTables()
       employee_identifier VARCHAR(60) NOT NULL,
       invoices_count INT NOT NULL DEFAULT 0,
       sales_total INT NOT NULL DEFAULT 0,
-      commission_rate FLOAT NOT NULL DEFAULT 0.05,
+      commission_rate DECIMAL(5,4) NOT NULL DEFAULT 0.0500,
       commission_due INT NOT NULL DEFAULT 0,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       UNIQUE KEY uniq_mdt_employee_stats (job_name, employee_identifier)
     )
   ]])
+
+  -- Fix column type if it was FLOAT before
+  MySQL.query([[ALTER TABLE mdt_employee_stats MODIFY COLUMN commission_rate DECIMAL(5,4) NOT NULL DEFAULT 0.0500]])
 
   MySQL.query([[
     CREATE TABLE IF NOT EXISTS mdt_doj_actions (
@@ -603,7 +606,7 @@ ESX.RegisterServerCallback('mdt:server:updateCommissionRate', function(source, c
     cb({ ok = false, reason = 'no_permission' })
     return
   end
-  if not payload or not payload.identifier or not payload.rate then
+  if not payload or not payload.identifier or payload.rate == nil then
     cb({ ok = false, reason = 'invalid_payload' })
     return
   end
@@ -614,19 +617,32 @@ ESX.RegisterServerCallback('mdt:server:updateCommissionRate', function(source, c
     return
   end
 
+  -- CRITICAL: Force convert to number and clamp between 0 and 1
+  local rate = tonumber(payload.rate)
+  if not rate then
+    cb({ ok = false, reason = 'invalid_rate' })
+    return
+  end
+  -- Ensure rate is between 0 and 1 (0% to 100%)
+  if rate < 0 then rate = 0 end
+  if rate > 1 then rate = 1 end
+
+  -- Use string formatting to ensure proper decimal
+  local rateStr = string.format("%.4f", rate)
+
   MySQL.update(
     [[
-      INSERT INTO mdt_employee_stats (job_name, employee_identifier, commission_rate)
-      VALUES (?, ?, ?)
-      ON DUPLICATE KEY UPDATE commission_rate = VALUES(commission_rate)
+      INSERT INTO mdt_employee_stats (job_name, employee_identifier, commission_rate, invoices_count, sales_total, commission_due)
+      VALUES (?, ?, ?, 0, 0, 0)
+      ON DUPLICATE KEY UPDATE commission_rate = ?
     ]],
-    { playerJob.name, payload.identifier, payload.rate },
+    { playerJob.name, payload.identifier, rateStr, rateStr },
     function()
       refreshClients('employees')
       sendWebhook('Commission modifiée', {
         { name = 'Patron', value = playerLabel(playerId), inline = true },
         { name = 'Employé', value = payload.identifier, inline = true },
-        { name = 'Taux', value = tostring(payload.rate), inline = true },
+        { name = 'Taux', value = tostring(rate * 100) .. '%', inline = true },
         { name = 'Entreprise', value = playerJob.name, inline = true }
       })
       cb({ ok = true })

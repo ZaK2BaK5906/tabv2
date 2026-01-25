@@ -1,6 +1,7 @@
 export default {
-  content: ['./index.html', './src/**/*.{ts,tsx}'],
-  // Disable Tailwind's base layer to prevent any default backgrounds
+  // Empty content = Tailwind won't generate any utility classes
+  // We use pure CSS instead
+  content: [],
   corePlugins: {
     preflight: false,
   },
