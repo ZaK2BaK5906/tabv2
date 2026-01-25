@@ -205,6 +205,18 @@ RegisterNUICallback('mdt:resetEmployeeStats', function(data, cb)
   end, data and data.identifier or nil)
 end)
 
+RegisterNUICallback('mdt:getCompanyData', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:getCompanyData', function(response)
+    cb(response)
+  end)
+end)
+
+RegisterNUICallback('mdt:resetCompanyStats', function(_, cb)
+  ESX.TriggerServerCallback('mdt:server:resetCompanyStats', function(response)
+    cb(response)
+  end)
+end)
+
 RegisterNetEvent('mdt:client:dataUpdated', function(payload)
   SendNUIMessage({
     type = 'mdt:dataUpdated',

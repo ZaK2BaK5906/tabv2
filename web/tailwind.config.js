@@ -1,5 +1,9 @@
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // Disable Tailwind's base layer to prevent any default backgrounds
+  corePlugins: {
+    preflight: false,
+  },
   theme: {
     extend: {
       colors: {

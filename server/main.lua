@@ -2745,3 +2745,84 @@ ESX.RegisterServerCallback('mdt:server:getPenalStats', function(source, cb)
     end)
   end)
 end)
+
+-- Get company data for Gestion Societe page
+ESX.RegisterServerCallback('mdt:server:getCompanyData', function(source, cb)
+  local playerId = source
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  local companyData = {
+    societyMoney = 0,
+    totalCommissionsDue = 0,
+    totalTaxesDue = 0,
+    employeesCount = 0,
+    pendingInvoices = 0
+  }
+
+  -- Get society money
+  TriggerEvent('esx_addonaccount:getSharedAccount', 'society_' .. playerJob.name, function(account)
+    local getSocietyMoney = function(money)
+      companyData.societyMoney = money or 0
+
+      -- Get total commissions due
+      MySQL.query('SELECT COALESCE(SUM(commission_due), 0) as total FROM mdt_employee_stats WHERE job_name = ?', { playerJob.name }, function(commRows)
+        companyData.totalCommissionsDue = commRows and commRows[1] and commRows[1].total or 0
+
+        -- Get total taxes due (from unpaid invoices)
+        MySQL.query('SELECT COALESCE(SUM(tax_amount), 0) as total FROM mdt_invoices WHERE job_name = ? AND status = "paid"', { playerJob.name }, function(taxRows)
+          companyData.totalTaxesDue = taxRows and taxRows[1] and taxRows[1].total or 0
+
+          -- Get employees count
+          MySQL.query('SELECT COUNT(*) as count FROM users WHERE job = ?', { playerJob.name }, function(empRows)
+            companyData.employeesCount = empRows and empRows[1] and empRows[1].count or 0
+
+            -- Get pending invoices count
+            MySQL.query('SELECT COUNT(*) as count FROM mdt_invoices WHERE job_name = ? AND status = "pending"', { playerJob.name }, function(invRows)
+              companyData.pendingInvoices = invRows and invRows[1] and invRows[1].count or 0
+
+              cb({ ok = true, data = companyData })
+            end)
+          end)
+        end)
+      end)
+    end
+
+    if account then
+      getSocietyMoney(account.money)
+    else
+      MySQL.query('SELECT money FROM addon_account_data WHERE account_name = ?', { 'society_' .. playerJob.name }, function(rows)
+        getSocietyMoney(rows and rows[1] and rows[1].money or 0)
+      end)
+    end
+  end)
+end)
+
+-- Reset company stats (all employee stats)
+ESX.RegisterServerCallback('mdt:server:resetCompanyStats', function(source, cb)
+  local playerId = source
+  if not isBoss(playerId) then
+    cb({ ok = false, reason = 'no_permission' })
+    return
+  end
+
+  local playerJob = getPlayerJob(playerId)
+  if not playerJob then
+    cb({ ok = false, reason = 'no_job' })
+    return
+  end
+
+  -- Reset all employee stats for this company
+  MySQL.update('UPDATE mdt_employee_stats SET invoices_count = 0, sales_total = 0, commission_due = 0 WHERE job_name = ?', { playerJob.name }, function()
+    refreshClients('employees')
+    refreshClients('company')
+    sendWebhook('Reset statistiques societe', {
+      { name = 'Patron', value = playerLabel(playerId), inline = true },
+      { name = 'Entreprise', value = playerJob.name, inline = true }
+    })
+    cb({ ok = true })
+  end)
+end)

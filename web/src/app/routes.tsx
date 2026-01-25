@@ -5,6 +5,7 @@ const Invoices = lazy(() => import('../pages/Invoices'));
 const MyInvoices = lazy(() => import('../pages/MyInvoices'));
 const Employees = lazy(() => import('../pages/Employees'));
 const Commissions = lazy(() => import('../pages/Commissions'));
+const Company = lazy(() => import('../pages/Company'));
 const Partnerships = lazy(() => import('../pages/Partnerships'));
 const Products = lazy(() => import('../pages/Products'));
 const Taxes = lazy(() => import('../pages/Taxes'));
@@ -18,6 +19,7 @@ export const routes = [
   { path: '/my-invoices', label: 'Mes Factures', element: MyInvoices, icon: 'receipt' },
   { path: '/employees', label: 'Employes', element: Employees, icon: 'users' },
   { path: '/commissions', label: 'Commissions', element: Commissions, icon: 'money' },
+  { path: '/company', label: 'Gestion Societe', element: Company, icon: 'building' },
   { path: '/partnerships', label: 'Partenariats', element: Partnerships, icon: 'handshake' },
   { path: '/products', label: 'Produits', element: Products, icon: 'tag' },
   { path: '/taxes', label: 'Taxes / DOJ', element: Taxes, icon: 'scale' },

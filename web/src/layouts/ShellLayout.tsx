@@ -32,7 +32,7 @@ const ShellLayout = ({ children }: { children: React.ReactNode }) => {
     }
 
     // Boss-only pages
-    if (route.path === '/employees' || route.path === '/commissions' || route.path === '/partnerships' || route.path === '/products') {
+    if (route.path === '/employees' || route.path === '/commissions' || route.path === '/company' || route.path === '/partnerships' || route.path === '/products') {
       return isBoss;
     }
 

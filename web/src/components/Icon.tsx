@@ -31,7 +31,11 @@ const iconPaths: Record<string, string> = {
   box:
     'M3 8l9-4 9 4v8l-9 4-9-4V8zm9-4v16m-9-12l9 4 9-4',
   'user-plus':
-    'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm11-3v6m-3-3h6'
+    'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm11-3v6m-3-3h6',
+  building:
+    'M3 21h18M5 21V7l8-4v18m6-10v10m-6-8h.01M9 17h.01M9 13h.01M9 9h.01',
+  gavel:
+    'M14.5 3l6 6L18 11.5l-6-6L14.5 3zM3 21l7-7m5-5l3 3m-10 2l3 3'
 };
 
 const Icon = ({ name }: { name: string }) => (

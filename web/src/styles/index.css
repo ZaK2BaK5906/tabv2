@@ -1,28 +1,38 @@
-@tailwind base;
+/* Minimal reset since preflight is disabled */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================
-   NUI Transparency - JavaScript handles visibility
-   CSS just provides styling
+   NUI Transparency - CRITICAL: No backgrounds anywhere
    ============================================ */
 
 :root {
   color-scheme: dark;
 }
 
-html,
+html {
+  height: 100%;
+  width: 100%;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 body {
   height: 100%;
   width: 100%;
   margin: 0;
   padding: 0;
   background: transparent !important;
-}
-
-body {
+  background-color: transparent !important;
   font-family: "Inter", system-ui, sans-serif;
   color: white;
+  line-height: 1.5;
 }
 
 /* #root visibility is controlled by JavaScript in index.html */

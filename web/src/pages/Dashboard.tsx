@@ -22,7 +22,7 @@ const Dashboard = () => {
 
   const statsCards = [
     {
-      label: 'Total facturé (30j)',
+      label: 'Total facture (periode)',
       value: formatMoney(stats?.totalInvoiced ?? 0),
       change: player?.job?.label ?? '—',
       icon: 'chart'
@@ -30,19 +30,19 @@ const Dashboard = () => {
     {
       label: 'Taxes dues',
       value: formatMoney(stats?.taxesDue ?? 0),
-      change: 'TVA collectée',
+      change: 'TVA collectee',
       icon: 'scale'
     },
     {
       label: 'Commissions',
       value: formatMoney(stats?.commissionsTotal ?? 0),
-      change: 'Total versé',
+      change: 'Total a payer',
       icon: 'money'
     },
     {
-      label: 'Employés',
+      label: 'Employes',
       value: String(stats?.employeesCount ?? 0),
-      change: player?.isBoss ? 'Patron' : 'Employé',
+      change: player?.isBoss ? 'Patron' : 'Employe',
       icon: 'users'
     }
   ];
@@ -65,16 +65,16 @@ const Dashboard = () => {
     <div className="space-y-10">
       <section className="grid grid-cols-4 gap-6">
         {statsCards.map((stat) => (
-          <div key={stat.label} className="glass-panel rounded-2xl p-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/50">
+          <div key={stat.label} className="glass-panel rounded-2xl p-6 overflow-hidden">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-2 min-w-0 flex-1">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/50 truncate">
                   {stat.label}
                 </p>
-                <p className="font-display text-2xl">{stat.value}</p>
-                <span className="badge">{stat.change}</span>
+                <p className="font-display text-2xl truncate">{stat.value}</p>
+                <span className="badge truncate">{stat.change}</span>
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-xl">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white/5 text-xl">
                 <Icon name={stat.icon} />
               </div>
             </div>
