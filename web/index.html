@@ -4,59 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MDT Premium</title>
-    <!-- CRITICAL: Force transparent BEFORE anything else -->
-    <script>
-      (function() {
-        // Force transparent on html immediately
-        document.documentElement.style.cssText = 'background:transparent!important;background-color:transparent!important;';
-
-        // Wait for body to exist then force transparent
-        function forceTransparent() {
-          if (document.body) {
-            document.body.style.cssText = 'background:transparent!important;background-color:transparent!important;margin:0;padding:0;';
-            var root = document.getElementById('root');
-            if (root) {
-              root.style.cssText = 'display:none!important;visibility:hidden!important;opacity:0!important;background:transparent!important;';
-            }
-          }
-        }
-
-        // Run immediately if body exists
-        if (document.body) {
-          forceTransparent();
-        }
-
-        // Also run on DOMContentLoaded
-        document.addEventListener('DOMContentLoaded', forceTransparent);
-
-        // Watch for mdt-open class to show UI
-        var observer = new MutationObserver(function(mutations) {
-          mutations.forEach(function(mutation) {
-            if (mutation.attributeName === 'class') {
-              var root = document.getElementById('root');
-              if (document.body.classList.contains('mdt-open')) {
-                if (root) root.style.cssText = 'display:flex!important;visibility:visible!important;opacity:1!important;background:transparent!important;height:100%;width:100%;';
-              } else {
-                if (root) root.style.cssText = 'display:none!important;visibility:hidden!important;opacity:0!important;background:transparent!important;';
-                // Also force body transparent when closing
-                document.body.style.background = 'transparent';
-                document.body.style.backgroundColor = 'transparent';
-              }
-            }
-          });
-        });
-
-        // Start observing when body is ready
-        function startObserver() {
-          if (document.body) {
-            observer.observe(document.body, { attributes: true });
-          } else {
-            requestAnimationFrame(startObserver);
-          }
-        }
-        startObserver();
-      })();
-    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -64,28 +11,34 @@
       rel="stylesheet"
     />
     <style>
-      /* Critical: Ensure no background and hidden by default */
-      html, body {
+      /* Force transparent everywhere - CEF/NUI compatibility */
+      html, body, #root {
         background: transparent !important;
         background-color: transparent !important;
         margin: 0;
         padding: 0;
-      }
-      #root {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        background: transparent !important;
-      }
-      body.mdt-open #root {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
+        height: 100%;
+        width: 100%;
       }
     </style>
+    <script>
+      // Dev mode: auto-open tablet when running in browser (not in FiveM NUI)
+      (function() {
+        var isNui = window.GetParentResourceName !== undefined;
+        if (!isNui && window.location.hostname === 'localhost') {
+          // In dev mode - add mdt-open class after a short delay
+          document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+              document.body.classList.add('mdt-open');
+              console.log('[MDT Dev] Auto-opened tablet for testing');
+            }, 100);
+          });
+        }
+      })();
+    </script>
   </head>
-  <body style="background: transparent !important; background-color: transparent !important;">
-    <div id="root" style="display:none!important;visibility:hidden!important;opacity:0!important;background:transparent!important;"></div>
+  <body>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

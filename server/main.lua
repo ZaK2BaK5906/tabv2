@@ -43,17 +43,25 @@ local function hasPermission(playerId, job, minGrade)
   return playerJob.grade >= minGrade
 end
 
--- Sync version for quick checks (uses cached max grade or grade_name check)
+-- Sync version - checks database for max grade
 local function isBoss(playerId)
   local playerJob = getPlayerJob(playerId)
   if not playerJob then
     return false
   end
-  -- Check by grade name first
+
+  -- First check by grade name (fast path)
   local gradeName = string.lower(playerJob.gradeName or '')
   if gradeName == 'boss' or gradeName == 'patron' or gradeName == 'directeur' or gradeName == 'chef' then
     return true
   end
+
+  -- Check database for max grade using sync query
+  local result = MySQL.scalar.await('SELECT MAX(grade) FROM job_grades WHERE job_name = ?', { playerJob.name })
+  if result ~= nil then
+    return playerJob.grade >= result
+  end
+
   return false
 end
 
@@ -2820,25 +2828,28 @@ end)
 -- Reset company stats (all employee stats)
 ESX.RegisterServerCallback('mdt:server:resetCompanyStats', function(source, cb)
   local playerId = source
-  if not isBoss(playerId) then
-    cb({ ok = false, reason = 'no_permission' })
-    return
-  end
-
   local playerJob = getPlayerJob(playerId)
   if not playerJob then
     cb({ ok = false, reason = 'no_job' })
     return
   end
 
-  -- Reset all employee stats for this company
-  MySQL.update('UPDATE mdt_employee_stats SET invoices_count = 0, sales_total = 0, commission_due = 0 WHERE job_name = ?', { playerJob.name }, function()
-    refreshClients('employees')
-    refreshClients('company')
-    sendWebhook('Reset statistiques societe', {
-      { name = 'Patron', value = playerLabel(playerId), inline = true },
-      { name = 'Entreprise', value = playerJob.name, inline = true }
-    })
-    cb({ ok = true })
+  -- Use async boss check for accurate permission
+  isBossAsync(playerId, function(isBossResult)
+    if not isBossResult then
+      cb({ ok = false, reason = 'no_permission' })
+      return
+    end
+
+    -- Reset all employee stats for this company
+    MySQL.update('UPDATE mdt_employee_stats SET invoices_count = 0, sales_total = 0, commission_due = 0 WHERE job_name = ?', { playerJob.name }, function()
+      refreshClients('employees')
+      refreshClients('company')
+      sendWebhook('Reset statistiques societe', {
+        { name = 'Patron', value = playerLabel(playerId), inline = true },
+        { name = 'Entreprise', value = playerJob.name, inline = true }
+      })
+      cb({ ok = true })
+    end)
   end)
 end)

@@ -1,7 +1,5 @@
 export default {
-  // Empty content = Tailwind won't generate any utility classes
-  // We use pure CSS instead
-  content: [],
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
   corePlugins: {
     preflight: false,
   },
