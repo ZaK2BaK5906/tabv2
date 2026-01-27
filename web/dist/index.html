@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MDT Premium</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Force transparent everywhere - CEF/NUI compatibility */
+      html, body, #root {
+        background: transparent !important;
+        background-color: transparent !important;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+    <script>
+      // Dev mode: auto-open tablet when running in browser (not in FiveM NUI)
+      (function() {
+        var isNui = window.GetParentResourceName !== undefined;
+        if (!isNui && window.location.hostname === 'localhost') {
+          // In dev mode - add mdt-open class after a short delay
+          document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+              document.body.classList.add('mdt-open');
+              console.log('[MDT Dev] Auto-opened tablet for testing');
+            }, 100);
+          });
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-BW6v3LKB.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DKY4rYpf.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
